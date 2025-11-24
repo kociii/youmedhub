@@ -35,6 +35,7 @@ const props = defineProps<{
 const videoRef = ref<HTMLVideoElement | null>(null);
 const isPlaying = ref(false);
 const error = ref(false);
+let playPromise: Promise<void> | null = null; // 保存 play() 的 Promise
 
 const duration = computed(() => Math.max(0, props.endTime - props.startTime));
 
@@ -54,12 +55,17 @@ const handleError = () => {
 
 const handleTimeUpdate = () => {
   if (!videoRef.value) return;
-  
+
   // 如果超过结束时间，循环播放
   if (videoRef.value.currentTime >= props.endTime) {
     videoRef.value.currentTime = props.startTime;
     if (isPlaying.value) {
-      videoRef.value.play().catch(console.error);
+      videoRef.value.play().catch((e) => {
+        // 忽略 AbortError
+        if (e.name !== 'AbortError') {
+          console.error("循环播放失败", e);
+        }
+      });
     }
   }
 };
@@ -67,23 +73,41 @@ const handleTimeUpdate = () => {
 const handleMouseEnter = async () => {
   if (videoRef.value && !error.value) {
     isPlaying.value = true;
-    
+
     // 确保在范围内
     if (videoRef.value.currentTime < props.startTime || videoRef.value.currentTime >= props.endTime) {
       videoRef.value.currentTime = props.startTime;
     }
-    
+
     try {
-      await videoRef.value.play();
+      // 保存 play() 的 Promise，以便在需要时可以等待它完成
+      playPromise = videoRef.value.play();
+      await playPromise;
+      playPromise = null;
     } catch (e) {
-      console.error("播放失败", e);
+      // 忽略 AbortError（被 pause() 中断）
+      if ((e as Error).name !== 'AbortError') {
+        console.error("播放失败", e);
+      }
+      playPromise = null;
     }
   }
 };
 
-const handleMouseLeave = () => {
+const handleMouseLeave = async () => {
   if (videoRef.value) {
     isPlaying.value = false;
+
+    // 如果有正在进行的 play() Promise，等待它完成或取消
+    if (playPromise) {
+      try {
+        await playPromise;
+      } catch (e) {
+        // 忽略任何播放错误
+      }
+      playPromise = null;
+    }
+
     videoRef.value.pause();
     // 需求：不要初始化到 0，在指定的开始时间和结束时间内循环
     // 离开时重置到开始时间，以便下次播放
