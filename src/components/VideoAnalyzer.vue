@@ -1,177 +1,260 @@
 <template>
-  <div class="video-analyzer">
-    <!-- 顶部标题栏 -->
-    <header class="header">
-      <div class="logo">YouMedHub</div>
-      <button
-        @click="showApiKeyModal = true"
-        class="btn-config"
-        :class="{ configured: apiKey }"
-      >
-        {{ apiKey ? 'API Key 已配置' : '配置 API Key' }}
-      </button>
+  <div class="app-container">
+    <!-- 1. 顶部栏：紧凑高度 -->
+    <header class="header-section">
+      <div class="brand-title">
+        <i class="bi bi-camera-reels-fill"></i>
+        <span>YouMedHub</span>
+        <span class="brand-subtitle">AI 视频内容分析</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+         <button
+          @click="showApiKeyModal = true"
+          class="btn btn-sm"
+          :class="apiKey ? 'btn-outline-success' : 'btn-outline-secondary'"
+          style="font-size: 0.8rem;"
+        >
+          <i class="bi" :class="apiKey ? 'bi-key-fill' : 'bi-key'"></i>
+          {{ apiKey ? 'API Key 已配置' : '配置 API Key' }}
+        </button>
+        <button class="btn btn-light btn-sm text-secondary" style="font-size: 0.8rem;">
+            <i class="bi bi-github"></i> v1.0
+        </button>
+      </div>
     </header>
 
-    <div class="container">
-      <!-- 左侧：视频上传区域 -->
-      <div class="left-panel">
-        <div class="upload-section">
-          <h2>视频上传</h2>
+    <div class="main-content">
+      <!-- 左侧面板 -->
+      <aside class="left-panel">
+        <!-- 上传与控制卡片 -->
+        <div class="custom-card flex-grow-1 d-flex flex-column">
+          <div class="card-body-custom flex-grow-1 d-flex flex-column">
+            <!-- 标题 -->
+            <h6 class="fw-bold mb-3 text-dark" style="font-size: 0.9rem;">
+              <i class="bi bi-cloud-arrow-up me-2 text-primary"></i>视频源
+            </h6>
 
-          <!-- 视频预览 -->
-          <div v-if="videoFile" class="video-preview">
-            <video
-              ref="videoRef"
-              :src="videoUrl"
-              controls
-              :key="videoUrl"
-              @loadedmetadata="onVideoLoaded"
-            ></video>
-
-            <!-- 视频信息 -->
-            <div class="video-info">
-              <span>{{ videoInfo.format }}</span>
-              <span>{{ videoInfo.size }}</span>
-              <span>{{ videoInfo.duration }}</span>
+            <!-- 上传区域 -->
+            <div 
+                v-if="!videoFile" 
+                class="upload-area" 
+                :class="{ dragover: isDragOver }"
+                @click="triggerFileInput"
+                @dragover.prevent="isDragOver = true"
+                @dragleave.prevent="isDragOver = false"
+                @drop.prevent="handleDrop"
+            >
+              <i class="bi bi-cloud-upload upload-icon"></i>
+              <h6 class="mb-1 fw-bold text-dark" style="font-size: 0.9rem;">点击或拖拽上传</h6>
+              <p class="text-muted small mb-0">支持 MP4, MOV, AVI 等格式</p>
+              <input 
+                ref="fileInputRef" 
+                type="file" 
+                accept="video/*" 
+                style="display: none;" 
+                @change="handleFileChange"
+            >
             </div>
 
-            <!-- 操作按钮 -->
-            <div class="video-actions">
-              <button
-                v-if="!isAnalyzing"
-                @click="clearVideo"
-                class="btn-secondary"
+            <!-- 2. 视频预览与信息：紧凑布局 -->
+            <div v-else class="flex-grow-1 d-flex flex-column video-preview-container">
+              <div class="video-wrapper">
+                <video 
+                    ref="videoRef" 
+                    :src="videoUrl" 
+                    controls 
+                    @loadedmetadata="onVideoLoaded"
+                >
+                    您的浏览器不支持视频播放。
+                </video>
+              </div>
+              
+              <!-- 视频下方紧凑信息条 -->
+              <div class="video-compact-info mt-2">
+                <span class="text-truncate" style="max-width: 120px;" :title="videoFile.name">{{ videoFile.name }}</span>
+                <span>
+                  <span class="divider">|</span>
+                  <span>{{ videoInfo.size }}</span>
+                  <span class="divider">|</span>
+                  <span>{{ videoInfo.duration }}</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- 操作按钮组 -->
+            <div class="d-grid gap-2 mt-3">
+              <button 
+                @click="handleAnalyze" 
+                class="btn btn-primary" 
+                :disabled="!videoFile || !apiKey || isAnalyzing"
               >
-                更换视频
-              </button>
-              <button
-                @click="handleAnalyze"
-                :disabled="!apiKey || isAnalyzing"
-                class="btn-primary"
-              >
+                <i class="bi bi-magic me-2"></i>
                 {{ isAnalyzing ? '分析中...' : '开始分析' }}
               </button>
+              
+              <button 
+                v-if="videoFile && !isAnalyzing" 
+                @click="clearVideo" 
+                class="btn btn-outline-secondary btn-sm"
+              >
+                <i class="bi bi-arrow-repeat me-1"></i>更换视频
+              </button>
             </div>
-          </div>
 
-          <!-- 上传区域 -->
-          <div v-else class="upload-area" @click="triggerFileInput">
-            <input
-              ref="fileInputRef"
-              type="file"
-              accept="video/*"
-              @change="handleFileChange"
-              style="display: none"
-            />
-            <div class="upload-placeholder">
-              <div class="upload-icon">+</div>
-              <p>点击上传视频文件</p>
-              <p class="hint">支持 MP4, MOV, AVI 等格式</p>
-            </div>
-          </div>
-
-          <!-- 错误信息 -->
-          <div v-if="error" class="error-message">
-            {{ error }}
-          </div>
-        </div>
-      </div>
-
-      <!-- 右侧：分析结果表格 -->
-      <div class="right-panel">
-        <div class="panel-header">
-          <h2>视频脚本分析结果</h2>
-          <div class="header-actions">
-            <div v-if="isAnalyzing" class="analyzing-indicator">
-              <div class="pulsing-dot"></div>
-              <span>AI 分析中... {{ progressMessage }}</span>
+            <!-- 错误消息 -->
+            <div v-if="error" class="status-message status-error mt-2">
+                {{ error }}
             </div>
           </div>
         </div>
+      </aside>
 
-        <!-- 脚本表格容器 -->
-        <div class="script-table-container" ref="tableContainerRef">
-          <table class="script-table" v-if="hasResults">
-            <thead>
-              <tr>
-                <th width="60">序号</th>
-                <th width="80">景别</th>
-                <th width="100">运镜方式</th>
-                <th>画面内容</th>
-                <th width="150">画面文案</th>
-                <th width="200">口播</th>
-                <th width="150">音效/音乐</th>
-                <th width="120">时间范围</th>
-                <th width="80">时长</th>
-                <th width="120">视频片段</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in displayedItems" :key="item.sequenceNumber" class="script-row">
-                <td class="text-center font-bold">{{ item.sequenceNumber }}</td>
-                <td class="text-center">{{ item.shotType }}</td>
-                <td class="text-center">{{ item.cameraMovement }}</td>
-                <td class="text-left visual-content">{{ item.visualContent }}</td>
-                <td class="text-left">{{ item.onScreenText !== '无' ? item.onScreenText : '' }}</td>
-                <td class="text-left">{{ item.voiceover !== '无' ? item.voiceover : '' }}</td>
-                <td class="text-left">{{ item.audio !== '无' ? item.audio : '' }}</td>
-                <td class="text-center font-mono time-range">
-                  <span class="time-start">{{ item.startTime }}</span>
-                  <span class="time-separator">→</span>
-                  <span class="time-end">{{ item.endTime }}</span>
-                </td>
-                <td class="text-center font-mono">{{ item.duration }}</td>
-                <td class="text-center media-cell" style="width: 160px; height: 100px; padding: 4px;">
-                  <VideoSegmentPlayer
-                    v-if="videoUrl"
-                    :video-url="videoUrl"
-                    :start-time="parseTimeToSeconds(item.startTime)"
-                    :end-time="parseTimeToSeconds(item.endTime)"
-                  />
-                </td>
-              </tr>
-              <!-- 骨架屏行（当正在分析且无最新数据时显示，或简单地显示加载状态） -->
-              <tr v-if="isAnalyzing" class="loading-row">
-                <td colspan="10">
-                  <div class="loading-indicator">
-                    <div class="spinner-small"></div>
-                    <span>正在分析下一帧...</span>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- 右侧面板 -->
+      <main class="right-panel">
+        <!-- 3. 分析 Loading 遮罩 (位于右侧) -->
+        <div v-if="isAnalyzing" class="right-panel-loading">
+            <div class="loading-content">
+                <div class="loading-spinner-lg"></div>
+                <h5 class="fw-bold text-dark mb-2">正在智能分析中</h5>
+                <p class="text-muted small">这可能需要几分钟时间，请耐心等待...</p>
+                <p class="text-primary small">{{ progressMessage }}</p>
+                
+                <!-- 模拟进度步骤 -->
+                <div class="loading-steps">
+                    <div class="loading-step" :class="{ active: loadingStep >= 1 }">
+                        <i class="bi" :class="loadingStep >= 1 ? 'bi-check-circle-fill' : 'bi-circle'"></i> 视频上传与预处理
+                    </div>
+                    <div class="loading-step" :class="{ active: loadingStep >= 2 }">
+                        <i class="bi" :class="loadingStep >= 2 ? 'bi-check-circle-fill' : 'bi-circle'"></i> AI 场景识别与分析
+                    </div>
+                    <div class="loading-step" :class="{ active: loadingStep >= 3 }">
+                        <i class="bi" :class="loadingStep >= 3 ? 'bi-check-circle-fill' : 'bi-circle'"></i> 生成结构化结果
+                    </div>
+                </div>
+            </div>
+        </div>
 
-          <!-- 空状态 -->
-          <div v-else-if="!isAnalyzing" class="empty-state">
-            <div class="empty-icon">🎬</div>
-            <p>上传视频并点击"开始分析"后，这里将显示分析结果</p>
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" role="tablist">
+          <li class="nav-item">
+            <button 
+                class="nav-link" 
+                :class="{ active: activeTab === 'current' }"
+                @click="activeTab = 'current'"
+            >
+              当前结果
+            </button>
+          </li>
+          <li class="nav-item">
+            <button 
+                class="nav-link" 
+                :class="{ active: activeTab === 'history' }"
+                @click="activeTab = 'history'"
+            >
+              历史记录
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content h-100" id="resultTabContent">
+          <!-- 当前分析结果 -->
+          <div v-show="activeTab === 'current'" class="tab-pane fade show active h-100 d-flex flex-column">
+            <div id="resultsContainer" ref="tableContainerRef">
+                <!-- 空状态 -->
+                <div v-if="!hasResults && !isAnalyzing" class="d-flex flex-column align-items-center justify-content-center h-100 text-muted" style="min-height: 300px;">
+                    <i class="bi bi-clipboard-data display-4 mb-3 opacity-25"></i>
+                    <p>暂无数据，请先进行分析</p>
+                </div>
+
+                <!-- 结果表格 -->
+                <template v-if="hasResults">
+                    <div class="d-flex justify-content-between align-items-center p-3 bg-white border-bottom sticky-top">
+                        <span class="fw-bold text-primary"><i class="bi bi-check-all me-1"></i> {{ displayedItems.length }} 个场景</span>
+                    </div>
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th style="width: 80px;">景别</th>
+                                <th style="width: 80px;">运镜</th>
+                                <th style="width: 25%;">画面</th>
+                                <th>文案/口播</th>
+                                <th style="width: 150px;">时长</th>
+                                <th style="width: 220px;">视频片段</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="item in displayedItems" :key="item.sequenceNumber">
+                                <td class="text-center text-secondary">{{ item.sequenceNumber }}</td>
+                                <td><span class="badge bg-light text-dark border fw-normal">{{ item.shotType }}</span></td>
+                                <td><span class="badge bg-light text-dark border fw-normal">{{ item.cameraMovement }}</span></td>
+                                <td><small class="d-block text-wrap" style="max-height:4.5em;overflow:hidden;">{{ item.visualContent }}</small></td>
+                                <td>
+                                    <div class="small text-secondary mb-1"><i class="bi bi-card-text me-1"></i>{{ item.onScreenText !== '无' ? item.onScreenText : '-' }}</div>
+                                    <div class="small text-muted"><i class="bi bi-mic me-1"></i>{{ item.voiceover !== '无' ? item.voiceover : '-' }}</div>
+                                </td>
+                                <td class="font-monospace small">
+                                    <div class="mb-1">
+                                        <span class="badge bg-primary" style="font-size: 0.75rem; font-weight: 500;">
+                                            {{ item.duration }}
+                                        </span>
+                                    </div>
+                                    <div class="text-muted" style="font-size: 0.65rem; line-height: 1.2;">
+                                        <i class="bi bi-clock" style="font-size: 0.6rem;"></i>
+                                        {{ item.startTime }} - {{ item.endTime }}
+                                    </div>
+                                </td>
+                                <td class="text-center p-1">
+                                    <div class="video-segment-wrapper">
+                                        <VideoSegmentPlayer
+                                            v-if="videoUrl"
+                                            :video-url="videoUrl"
+                                            :start-time="parseTimeToSeconds(item.startTime)"
+                                            :end-time="parseTimeToSeconds(item.endTime)"
+                                        />
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </template>
+            </div>
           </div>
-          
-          <!-- 仅加载中无数据 -->
-          <div v-else class="loading-state">
-             <div class="spinner"></div>
-             <p>正在初始化分析引擎...</p>
+
+          <!-- 历史记录 (Placeholder) -->
+          <div v-show="activeTab === 'history'" class="tab-pane fade show active h-100">
+            <div class="p-3 overflow-auto h-100">
+                <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                    <p>暂无历史记录</p>
+                </div>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
 
     <!-- API Key 配置弹窗 -->
-    <div v-if="showApiKeyModal" class="modal-overlay" @click.self="showApiKeyModal = false">
-      <div class="modal">
-        <h3>配置 API Key</h3>
-        <p class="modal-hint">请输入通义千问 API Key</p>
-        <input
-          v-model="tempApiKey"
-          type="password"
-          placeholder="请输入 API Key"
-          class="modal-input"
-          @keyup.enter="confirmApiKey"
-        />
-        <div class="modal-actions">
-          <button @click="showApiKeyModal = false" class="btn-cancel">取消</button>
-          <button @click="confirmApiKey" class="btn-confirm" :disabled="!tempApiKey">确定</button>
+    <div v-if="showApiKeyModal" class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold">配置 API Key</h5>
+            <button type="button" class="btn-close" @click="showApiKeyModal = false"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted mb-3 small">请输入通义千问 API Key 以使用视频分析功能</p>
+            <input
+              v-model="tempApiKey"
+              type="password"
+              class="form-control"
+              placeholder="请输入 API Key"
+              @keyup.enter="confirmApiKey"
+            />
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-light" @click="showApiKeyModal = false">取消</button>
+            <button type="button" class="btn btn-primary" @click="confirmApiKey" :disabled="!tempApiKey">确定</button>
+          </div>
         </div>
       </div>
     </div>
@@ -192,6 +275,9 @@ const apiKey = ref('');
 const tempApiKey = ref('');
 const showApiKeyModal = ref(false);
 const tableContainerRef = ref<HTMLElement | null>(null);
+const isDragOver = ref(false);
+const activeTab = ref('current');
+const loadingStep = ref(1);
 
 // 从 localStorage 加载 API Key
 onMounted(() => {
@@ -260,13 +346,24 @@ const triggerFileInput = () => {
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
+  processFile(file);
+};
 
-  if (file) {
-    videoFile.value = file;
-    videoUrl.value = URL.createObjectURL(file);
-    error.value = '';
-    analysisResult.value = null;
-  }
+const handleDrop = (event: DragEvent) => {
+    isDragOver.value = false;
+    const file = event.dataTransfer?.files[0];
+    processFile(file);
+};
+
+const processFile = (file: File | undefined) => {
+    if (file && file.type.startsWith('video/')) {
+        videoFile.value = file;
+        videoUrl.value = URL.createObjectURL(file);
+        error.value = '';
+        analysisResult.value = null;
+    } else if (file) {
+        error.value = '请选择有效的视频文件';
+    }
 };
 
 // 清除视频
@@ -287,46 +384,44 @@ const clearVideo = () => {
 const handleAnalyze = async () => {
   if (!videoFile.value || !apiKey.value) return;
 
-  console.clear(); // 清空之前的日志
-  console.log('═══════════════════════════════════════════════');
-  console.log('🎬 [视频分析] 开始分析视频');
-  console.log(`📹 [视频分析] 视频文件: ${videoFile.value.name}`);
-  console.log(`📊 [视频分析] 文件大小: ${(videoFile.value.size / 1024 / 1024).toFixed(2)} MB`);
-  console.log('═══════════════════════════════════════════════');
-
   isAnalyzing.value = true;
   error.value = '';
   analysisResult.value = null;
   progressMessage.value = '准备分析...';
+  loadingStep.value = 1;
 
   try {
+    // 模拟步骤1: 上传预处理
+    loadingStep.value = 1;
+    progressMessage.value = '视频预处理中...';
+    
     const result = await analyzeVideo(
       videoFile.value,
       apiKey.value,
       (message) => {
         progressMessage.value = message;
+        // 根据消息内容粗略判断步骤
+        if (message.includes('分析')) {
+             loadingStep.value = 2;
+        }
       }
     );
 
+    loadingStep.value = 3;
+    progressMessage.value = '整理结果中...';
+
     // 最终结果
     analysisResult.value = result;
-    progressMessage.value = '分析完成';
     scrollToBottom();
 
-    console.log('═══════════════════════════════════════════════');
-    console.log('🎉 [视频分析] 分析完成！');
-    console.log(`📋 [视频分析] 最终结果包含 ${result.rep.length} 个脚本项目`);
-    console.log('═══════════════════════════════════════════════');
   } catch (err) {
-    console.log('═══════════════════════════════════════════════');
-    console.log('❌ [视频分析] 分析失败');
-    console.log(`🔴 [视频分析] 错误信息: ${err instanceof Error ? err.message : '未知错误'}`);
-    console.log('═══════════════════════════════════════════════');
-
     error.value = err instanceof Error ? err.message : '分析失败，请重试';
     analysisResult.value = null;
   } finally {
-    isAnalyzing.value = false;
+    // 延迟一点关闭 loading，让用户看到完成状态
+    setTimeout(() => {
+        isAnalyzing.value = false;
+    }, 800);
   }
 };
 
@@ -350,580 +445,311 @@ const scrollToBottom = () => {
     }
   });
 };
-
-
 </script>
 
 <style scoped>
-/* 基础变量 */
+/* 复用参考文件中的 CSS 变量和样式 */
 :root {
-  --primary-color: #2563eb;
-  --bg-secondary: #f8fafc;
-  --border-color: #e2e8f0;
+    --primary-color: #4f46e5;
+    --primary-hover: #4338ca;
+    --bg-color: #f3f4f6;
+    --card-bg: #ffffff;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --border-color: #e5e7eb;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --radius-lg: 12px;
+    --radius-md: 8px;
+    --header-height: 50px;
 }
 
-.video-analyzer {
-  height: 100%;
-  width: 100%;
-  background: #ffffff;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    background: #f3f4f6; /* fallback */
+    background: var(--bg-color);
+    overflow: hidden;
 }
 
-/* 顶部标题栏 */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e5e5e5;
-  flex-shrink: 0;
+/* 顶部栏 */
+.header-section {
+    background: #ffffff;
+    height: 50px;
+    padding: 0 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    z-index: 10;
+    flex-shrink: 0;
 }
 
-.logo {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #2563eb;
+.brand-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #4f46e5;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-.btn-config {
-  padding: 0.5rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #666;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s;
+.brand-subtitle {
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-weight: 400;
+    margin-left: 0.5rem;
+    padding-left: 0.5rem;
+    border-left: 1px solid #e5e7eb;
+    display: inline-block;
 }
 
-.btn-config:hover {
-  border-color: #2563eb;
-  color: #2563eb;
+/* 主内容区域 */
+.main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    padding: 1rem;
+    gap: 1rem;
 }
 
-.btn-config.configured {
-  border-color: #10b981;
-  color: #10b981;
-}
-
-.container {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 1rem;
-  min-height: 0;
-  width: 100%;
-  padding: 1rem;
-}
-
+/* 左侧面板 */
 .left-panel {
-  background: #f9f9f9;
-  border-radius: 8px;
-  padding: 1rem;
-  border: 1px solid #e5e5e5;
-  overflow-y: auto;
+    width: 360px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow-y: auto;
 }
 
+/* 右侧面板 */
 .right-panel {
-  background: #ffffff;
-  border-radius: 8px;
-  border: 1px solid #e5e5e5;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-  padding: 0; /* 移除内边距，让表格贴边 */
+    flex: 1;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    position: relative;
 }
 
-.panel-header {
-  padding: 1rem;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #fdfdfd;
+/* 卡片通用样式 */
+.custom-card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.btn-batch {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.8rem;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
-}
-
-.btn-batch:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(99, 102, 241, 0.3);
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
-}
-
-.btn-batch:active {
-  transform: translateY(0);
-}
-
-h2 {
-  margin: 0;
-  color: #1e293b;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.analyzing-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: #2563eb;
-  background: #eff6ff;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-}
-
-.pulsing-dot {
-  width: 8px;
-  height: 8px;
-  background-color: #2563eb;
-  border-radius: 50%;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.8); opacity: 0.5; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(0.8); opacity: 0.5; }
-}
-
-/* 弹窗 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  width: 360px;
-  max-width: 90vw;
-}
-
-.modal h3 {
-  margin: 0 0 0.5rem 0;
-  color: #333;
-  font-size: 1.125rem;
-}
-
-.modal-hint {
-  margin: 0 0 1rem 0;
-  color: #666;
-  font-size: 0.875rem;
-}
-
-.modal-input {
-  width: 100%;
-  padding: 0.625rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  box-sizing: border-box;
-}
-
-.modal-input:focus {
-  outline: none;
-  border-color: #2563eb;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
-  justify-content: flex-end;
-}
-
-.btn-cancel,
-.btn-confirm {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-cancel {
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  color: #666;
-}
-
-.btn-cancel:hover {
-  background: #e5e7eb;
-}
-
-.btn-confirm {
-  background: #2563eb;
-  border: none;
-  color: white;
-}
-
-.btn-confirm:hover:not(:disabled) {
-  background: #1d4ed8;
-}
-
-.btn-confirm:disabled {
-  background: #9ca3af;
-  cursor: not-allowed;
-}
-
-/* 视频预览 */
-.video-preview video {
-  width: 100%;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-}
-
-/* 视频信息 */
-.video-info {
-  display: flex;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-  font-size: 0.75rem;
-  color: #666;
-}
-
-.video-info span {
-  padding: 0.25rem 0.5rem;
-  background: #e5e7eb;
-  border-radius: 4px;
-}
-
-/* 视频操作按钮 */
-.video-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-}
-
-.btn-secondary,
-.btn-primary {
-  padding: 0.5rem;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-secondary {
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  color: #666;
-}
-
-.btn-secondary:hover {
-  border-color: #9ca3af;
-  background: #f9fafb;
-}
-
-.btn-primary {
-  background: #2563eb;
-  border: none;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #1d4ed8;
-}
-
-.btn-primary:disabled {
-  background: #9ca3af;
-  cursor: not-allowed;
+.card-body-custom {
+    padding: 1rem;
 }
 
 /* 上传区域 */
 .upload-area {
-  border: 2px dashed #d1d5db;
-  border-radius: 8px;
-  padding: 2rem 1rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s;
-  background: #ffffff;
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 2rem 1rem;
+    text-align: center;
+    background: #f8fafc;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    height: 200px;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
-.upload-area:hover {
-  border-color: #2563eb;
-  background: #f0f7ff;
+.upload-area:hover, .upload-area.dragover {
+    border-color: #4f46e5;
+    background: #eef2ff;
 }
 
 .upload-icon {
-  font-size: 2rem;
-  color: #9ca3af;
-  margin-bottom: 0.5rem;
+    font-size: 2rem;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
 }
 
-.upload-placeholder p {
-  margin: 0.25rem 0;
-  color: #555;
-  font-size: 0.875rem;
+/* 视频预览 */
+.video-preview-container {
+    min-height: auto;
 }
 
-.upload-placeholder .hint {
-  font-size: 0.75rem;
-  color: #999;
+.video-wrapper {
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* 导出按钮 */
-.btn-export {
-  width: 100%;
-  padding: 0.5rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-export {
-  background: #10b981;
-  color: white;
-}
-
-.btn-export:hover {
-  background: #059669;
-}
-
-/* 错误信息 */
-.error-message {
-  margin-top: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background: #fef2f2;
-  color: #dc2626;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  border: 1px solid #fecaca;
-}
-
-.spinner {
-  border: 3px solid #f1f5f9;
-  border-top: 3px solid #3b82f6;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* 表格容器 */
-.script-table-container {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  background: #f8fafc;
-}
-
-.script-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #ffffff;
-  font-size: 0.85rem;
-}
-
-.script-table thead {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #f1f5f9;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-
-.script-table th {
-  padding: 0.75rem 0.5rem;
-  font-weight: 600;
-  color: #475569;
-  text-align: center;
-  border-bottom: 1px solid #e2e8f0;
-  white-space: nowrap;
-}
-
-.script-table td {
-  padding: 0.75rem 0.5rem;
-  border-bottom: 1px solid #f1f5f9;
-  color: #334155;
-  vertical-align: top;
-  line-height: 1.5;
-}
-
-.script-row:hover td {
-  background-color: #f8fafc;
-}
-
-/* 对齐方式 */
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.font-bold { font-weight: 600; color: #2563eb; }
-.font-mono { font-family: monospace; color: #64748b; }
-
-/* 时间范围样式 */
-.time-range {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  white-space: nowrap;
-}
-
-.time-separator {
-  color: #94a3b8;
-  font-weight: 300;
-  padding: 0 0.125rem;
-}
-
-/* 画面内容列宽一点，允许换行 */
-.visual-content {
-  min-width: 200px;
-}
-
-/* 媒体单元格 */
-.media-cell {
-  padding: 0.5rem !important;
-}
-
-
-/* 下载按钮 */
-.btn-download {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  background: #10b981;
-  color: white;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-download:hover {
-  background: #059669;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
-}
-
-/* 加载行 */
-.loading-row td {
-  padding: 1rem;
-  background: #f8fafc;
-  text-align: center;
-}
-
-.loading-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  color: #64748b;
-  font-size: 0.85rem;
-}
-
-.spinner-small {
-  border: 2px solid #e2e8f0;
-  border-top: 2px solid #3b82f6;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  animation: spin 1s linear infinite;
-}
-
-/* 空状态 */
-.empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #94a3b8;
-  gap: 1rem;
-}
-
-.empty-icon {
-  font-size: 3rem;
-  opacity: 0.5;
-}
-
-.loading-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
-}
-
-
-/* 流式输出内容（调试用，默认隐藏） */
-.stream-content {
-  margin-top: 1.5rem;
-  width: 100%;
-  max-width: 800px;
-  background: #ffffff;
-  border: 1px solid #e5e5e5;
-  border-radius: 6px;
-  padding: 1rem;
-  max-height: 400px;
-  overflow: auto;
-}
-
-.stream-content pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family: 'Courier New', monospace;
-  font-size: 0.8rem;
-  color: #333;
-  line-height: 1.5;
-}
-
-/* 响应式 */
-@media (max-width: 768px) {
-  .container {
-    grid-template-columns: 1fr;
-  }
-
-  .left-panel {
+.video-wrapper video {
+    width: 100%;
+    height: auto;
     max-width: 100%;
-  }
-
-  .right-panel {
-    height: 400px;
-  }
+    display: block;
+    object-fit: contain;
 }
+
+.video-compact-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #6b7280;
+    background: #f9fafb;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+}
+
+.video-compact-info .divider {
+    margin: 0 0.5rem;
+    color: #d1d5db;
+}
+
+/* 状态消息 */
+.status-message {
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    text-align: center;
+}
+.status-error { background-color: #fef2f2; color: #b91c1c; }
+.status-success { background-color: #ecfdf5; color: #047857; }
+
+/* Loading 遮罩 */
+.right-panel-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+.loading-content {
+    text-align: center;
+}
+
+.loading-spinner-lg {
+    width: 3rem;
+    height: 3rem;
+    border: 3px solid #e0e7ff;
+    border-top: 3px solid #4f46e5;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1.5rem auto;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.loading-steps {
+    margin-top: 2rem;
+    text-align: left;
+    width: 200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.loading-step {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    color: #6b7280;
+    font-size: 0.9rem;
+    opacity: 0.5;
+    transition: all 0.3s;
+}
+
+.loading-step.active {
+    color: #4f46e5;
+    font-weight: 500;
+    opacity: 1;
+}
+
+/* Tabs */
+.nav-tabs {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0 1rem;
+    height: 45px;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    color: #6b7280;
+    padding: 0 1rem;
+    height: 45px;
+    line-height: 45px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    background: transparent;
+}
+
+.nav-tabs .nav-link.active {
+    color: #4f46e5;
+    border-bottom: 2px solid #4f46e5;
+    font-weight: 500;
+}
+
+/* 表格区域 */
+#resultsContainer {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.table thead th {
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+    color: #6b7280;
+    font-weight: 600;
+    padding: 0.75rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table tbody td {
+    padding: 0.6rem 1rem;
+    vertical-align: middle;
+}
+
+/* 视频片段容器 */
+.video-segment-wrapper {
+    width: 200px;
+    max-width: 200px;
+    margin: 0 auto;
+}
+
+.video-segment-wrapper video {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+}
+
+/* 滚动条优化 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
 </style>
