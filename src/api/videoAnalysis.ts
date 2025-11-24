@@ -1,4 +1,5 @@
 import type { VideoAnalysisResponse } from '../types/video';
+import { uploadToTemporaryFile, validateVideoFile } from './temporaryFile';
 
 const ANALYSIS_PROMPT = `你是一个资深且专业的视频创作者,从业多年,不仅能够独立完成视频的脚本创作、视频拍摄、视频剪辑等工作,还能够很好的鉴赏、分析识别,准确的拆解一个视频的内容及要点内容。
 根据提供给你的视频,对视频进行分析,并结构化的输出你从视频中分析出的内容。
@@ -41,42 +42,6 @@ json格式字段对应:
 
 请只返回JSON格式的结果，不要包含其他文字说明。`;
 
-// 最大文件大小 (8MB)
-// 注意：API限制为10MB per data-uri，base64编码会增加约33%的大小
-// 因此实际上传限制约为8MB，编码后约10.6MB
-const MAX_FILE_SIZE = 8 * 1024 * 1024;
-
-// 将视频文件转换为 base64
-export async function videoToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      // 移除 data:video/xxx;base64, 前缀
-      const base64 = result.split(',')[1];
-      if (base64) {
-        resolve(base64);
-      } else {
-        reject(new Error('无法转换视频文件为 base64'));
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-// 获取视频的 MIME 类型
-function getVideoMimeType(file: File): string {
-  const extension = file.name.split('.').pop()?.toLowerCase();
-  const mimeTypes: Record<string, string> = {
-    mp4: 'video/mp4',
-    webm: 'video/webm',
-    mov: 'video/quicktime',
-    avi: 'video/x-msvideo',
-    mkv: 'video/x-matroska',
-  };
-  return mimeTypes[extension || ''] || 'video/mp4';
-}
 
 // 解析 API 返回的 JSON 内容
 function parseAnalysisResult(content: string): VideoAnalysisResponse {
@@ -257,7 +222,7 @@ function parseErrorMessage(error: any): string {
     return '参数无效，请检查视频格式是否支持（建议使用 MP4 格式）';
   }
   if (message.includes('TooLarge') || message.includes('size') || message.includes('Exceeded limit')) {
-    return '视频文件过大，请使用小于 8MB 的视频或使用在线视频 URL（推荐）';
+    return '视频文件过大，请使用小于 100MB 的视频或检查网络连接';
   }
   if (message.includes('AuthenticationNotPass')) {
     return 'API Key 验证失败，请检查 API Key 是否正确';
@@ -325,68 +290,6 @@ async function analyzeVideoByUrlNormal(
   return parseAnalysisResult(content);
 }
 
-// 使用本地文件分析 - 常规输出（非流式）
-async function analyzeVideoByFileNormal(
-  file: File,
-  apiKey: string,
-  onProgress?: (message: string) => void
-): Promise<VideoAnalysisResponse> {
-  // 检查文件大小
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`视频文件过大（${(file.size / 1024 / 1024).toFixed(1)}MB），请使用小于 8MB 的视频或使用在线视频 URL 模式`);
-  }
-
-  onProgress?.('正在读取视频文件...');
-  const base64Video = await videoToBase64(file);
-  const mimeType = getVideoMimeType(file);
-
-  onProgress?.('正在调用 AI 分析视频...');
-
-  const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'qwen-vl-max',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'video_url',
-              video_url: {
-                url: `data:${mimeType};base64,${base64Video}`,
-              },
-            },
-            {
-              type: 'text',
-              text: ANALYSIS_PROMPT,
-            },
-          ],
-        },
-      ],
-      stream: false, // 关闭流式输出
-    }),
-  });
-
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(parseErrorMessage(data));
-  }
-
-  onProgress?.('正在接收 AI 分析结果...');
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
-
-  if (!content) {
-    throw new Error('AI 返回内容为空');
-  }
-
-  onProgress?.('正在解析分析结果...');
-  return parseAnalysisResult(content);
-}
 
 // ==================== 流式输出版本 ====================
 
@@ -514,137 +417,81 @@ async function analyzeVideoByUrlStreaming(
   return parseAnalysisResult(fullContent);
 }
 
-// 使用本地文件分析 - 流式输出
-async function analyzeVideoByFileStreaming(
+
+// ==================== 新的临时文件服务分析方式 ====================
+
+// 通过临时文件服务分析视频 - 常规输出（非流式）
+async function analyzeVideoByTemporaryFileNormal(
+  file: File,
+  apiKey: string,
+  onProgress?: (message: string) => void
+): Promise<VideoAnalysisResponse> {
+  // 验证文件
+  const validation = validateVideoFile(file);
+  if (!validation.isValid) {
+    throw new Error(validation.error);
+  }
+
+  onProgress?.('正在上传视频到临时文件服务...');
+
+  try {
+    // 上传到临时文件服务
+    const uploadResult = await uploadToTemporaryFile(file, (loaded, total) => {
+      const progress = Math.round((loaded / total) * 100);
+      onProgress?.(`上传进度: ${progress}%`);
+    });
+
+    onProgress?.('视频上传成功，正在调用 AI 分析...');
+
+    // 使用返回的链接进行分析
+    return await analyzeVideoByUrlNormal(uploadResult.downloadLink, apiKey, onProgress);
+
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`上传失败: ${error.message}`);
+    }
+    throw new Error('视频上传过程中发生未知错误');
+  }
+}
+
+// 通过临时文件服务分析视频 - 流式输出
+async function analyzeVideoByTemporaryFileStreaming(
   file: File,
   apiKey: string,
   onProgress?: (message: string) => void,
   onStreamContent?: (content: string) => void
 ): Promise<VideoAnalysisResponse> {
-  // 检查文件大小
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`视频文件过大（${(file.size / 1024 / 1024).toFixed(1)}MB），请使用小于 8MB 的视频或使用在线视频 URL 模式`);
+  // 验证文件
+  const validation = validateVideoFile(file);
+  if (!validation.isValid) {
+    throw new Error(validation.error);
   }
 
-  onProgress?.('正在读取视频文件...');
-
-  const base64Video = await videoToBase64(file);
-  const mimeType = getVideoMimeType(file);
-
-  onProgress?.('正在调用 AI 分析视频...');
-
-  const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'qwen-vl-max',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'video_url',
-              video_url: {
-                url: `data:${mimeType};base64,${base64Video}`,
-              },
-            },
-            {
-              type: 'text',
-              text: ANALYSIS_PROMPT,
-            },
-          ],
-        },
-      ],
-      stream: true, // 启用流式输出
-    }),
-  });
-
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(parseErrorMessage(data));
-  }
-
-  // 处理流式响应（与 analyzeVideoByUrl 相同的逻辑）
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error('无法读取响应流');
-  }
-
-  const decoder = new TextDecoder();
-  let fullContent = '';
-
-  onProgress?.('正在接收 AI 分析结果...');
-  console.log('🚀 [流式输出] 开始接收数据流...');
-  console.log(`⏰ [流式输出] 开始时间: ${new Date().toISOString()}`);
+  onProgress?.('正在上传视频到临时文件服务...');
 
   try {
-    let chunkCount = 0;
-    let totalBytes = 0;
-    const startTime = Date.now();
+    // 上传到临时文件服务
+    const uploadResult = await uploadToTemporaryFile(file, (loaded, total) => {
+      const progress = Math.round((loaded / total) * 100);
+      onProgress?.(`上传进度: ${progress}%`);
+    });
 
-    while (true) {
-      const { done, value } = await reader.read();
+    onProgress?.('视频上传成功，正在调用 AI 分析...');
 
-      if (done) {
-        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log('✅ [流式输出] 数据流接收完成');
-        console.log(`⏱️  [流式输出] 总耗时: ${duration}s, 总数据块: ${chunkCount}, 总字节: ${totalBytes}`);
-        break;
-      }
+    // 使用返回的链接进行分析
+    return await analyzeVideoByUrlStreaming(uploadResult.downloadLink, apiKey, onProgress, onStreamContent);
 
-      chunkCount++;
-      totalBytes += value.length;
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
-      console.log(`📦 [流式输出 #${chunkCount}] +${elapsed}s | ${value.length}字节 | ${lines.length}行 | 累计${totalBytes}字节`);
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-
-          if (data === '[DONE]') {
-            console.log('🏁 [流式输出] 收到 [DONE] 标记');
-            continue;
-          }
-
-          try {
-            const json = JSON.parse(data);
-            const content = json.choices?.[0]?.delta?.content;
-
-            if (content) {
-              fullContent += content;
-              // 实时回调流式内容
-              onStreamContent?.(fullContent);
-            }
-          } catch (e) {
-            console.warn('⚠️ [流式输出] 解析失败:', line);
-          }
-        }
-      }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`上传失败: ${error.message}`);
     }
-
-    console.log(`📈 [流式输出] 总共接收 ${chunkCount} 个数据块`);
-    console.log(`📄 [流式输出] 完整内容长度: ${fullContent.length} 字符`);
-  } finally {
-    reader.releaseLock();
+    throw new Error('视频上传过程中发生未知错误');
   }
-
-  if (!fullContent) {
-    throw new Error('AI 返回内容为空');
-  }
-
-  onProgress?.('正在解析分析结果...');
-  return parseAnalysisResult(fullContent);
 }
 
 // ==================== 统一接口 ====================
 
-// 统一分析接口 - 常规输出（默认）
+// 统一分析接口 - 常规输出（默认，现在优先使用临时文件服务）
 export async function analyzeVideo(
   source: File | string,
   apiKey: string,
@@ -653,11 +500,12 @@ export async function analyzeVideo(
   if (typeof source === 'string') {
     return analyzeVideoByUrlNormal(source, apiKey, onProgress);
   } else {
-    return analyzeVideoByFileNormal(source, apiKey, onProgress);
+    // 优先使用临时文件服务方式
+    return analyzeVideoByTemporaryFileNormal(source, apiKey, onProgress);
   }
 }
 
-// 统一分析接口 - 流式输出版本
+// 统一分析接口 - 流式输出版本（现在优先使用临时文件服务）
 export async function analyzeVideoStreaming(
   source: File | string,
   apiKey: string,
@@ -667,6 +515,7 @@ export async function analyzeVideoStreaming(
   if (typeof source === 'string') {
     return analyzeVideoByUrlStreaming(source, apiKey, onProgress, onStreamContent);
   } else {
-    return analyzeVideoByFileStreaming(source, apiKey, onProgress, onStreamContent);
+    // 优先使用临时文件服务方式
+    return analyzeVideoByTemporaryFileStreaming(source, apiKey, onProgress, onStreamContent);
   }
 }

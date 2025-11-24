@@ -46,7 +46,7 @@
             >
               <i class="bi bi-cloud-upload upload-icon"></i>
               <h6 class="mb-1 fw-bold text-dark" style="font-size: 0.9rem;">点击或拖拽上传</h6>
-              <p class="text-muted small mb-0">支持 MP4, MOV, AVI 等格式（文件大小 < 8MB，推荐使用在线视频 URL）</p>
+              <p class="text-muted small mb-0">支持 MP4, MOV, AVI 等格式（文件大小 < 100MB，通过临时文件服务上传）</p>
               <input 
                 ref="fileInputRef" 
                 type="file" 
@@ -393,16 +393,18 @@ const handleAnalyze = async () => {
   try {
     // 模拟步骤1: 上传预处理
     loadingStep.value = 1;
-    progressMessage.value = '视频预处理中...';
-    
+    progressMessage.value = '准备上传视频...';
+
     const result = await analyzeVideo(
       videoFile.value,
       apiKey.value,
       (message) => {
         progressMessage.value = message;
-        // 根据消息内容粗略判断步骤
-        if (message.includes('分析')) {
-             loadingStep.value = 2;
+        // 根据消息内容判断步骤
+        if (message.includes('上传')) {
+          loadingStep.value = 1;
+        } else if (message.includes('分析')) {
+          loadingStep.value = 2;
         }
       }
     );
