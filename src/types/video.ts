@@ -7,8 +7,9 @@ export interface VideoScriptItem {
   onScreenText: string;        // 画面文案
   voiceover: string;           // 口播
   audio: string;               // 音效/音乐
-  duration: string;            // 时长
-  keyframeTimes: string;       // 关键画面帧数
+  startTime: string;           // 开始时间 (MM:SS)
+  endTime: string;             // 结束时间 (MM:SS)
+  duration: string;            // 时长 (MM:SS)
 }
 
 // API 返回结果
