@@ -10,7 +10,6 @@
 - 🔐 **安全存储**：API Key 本地存储，保护隐私
 - 🎯 **实时流式输出**：Markdown 流式显示，所见即所得
 - 📈 **Token 统计**：实时显示输入/输出/总计 Token 使用量
-- 📋 **吸顶表头**：表格标题行固定，浏览大量数据更便捷
 
 ## 快速开始
 
@@ -22,12 +21,14 @@ pnpm install
 
 ### 2. 配置 API Key
 
-获取阿里云 DashScope API Key：https://help.aliyun.com/zh/model-studio/get-api-key
+获取阿里云 DashScope API Key：<https://help.aliyun.com/zh/model-studio/get-api-key>
 
 方式一：在应用界面配置（推荐）
+
 - 启动应用后点击右上角"配置 API Key"按钮
 
 方式二：环境变量配置
+
 ```bash
 cp .env.example .env
 # 编辑 .env 文件，填入你的 API Key
