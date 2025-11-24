@@ -112,8 +112,8 @@ git push origin main
 **[videoAnalysis.ts](src/api/videoAnalysis.ts)** 包含视频分析逻辑（已优化简化，从 747 行减少到 198 行）：
 
 - **上传分析流程**：
-  1. 通过 tmpfile.link 临时文件服务上传视频（支持 100MB）
-  2. 获取临时访问 URL（有效期 7 天）
+  1. 浏览器直接上传视频到阿里云 OSS（支持 100MB）
+  2. 获取 OSS 访问 URL
   3. 使用 URL 调用通义千问 AI 进行分析
 
 - **统一接口**：`analyzeVideo(source, apiKey, model, onProgress)` 自动处理 File 或 URL
@@ -127,9 +127,10 @@ git push origin main
   - 使用兼容 OpenAI 的 chat completions 格式，支持视觉能力
   - 通过 Bearer token 进行授权（DashScope API Key）
 
-- **CORS 跨域处理**：
-  - 开发环境：通过 Vite 代理 `/api/tmpfile` 解决跨域问题
-  - 生产环境：需要配置反向代理（参见 [DEPLOYMENT.md](DEPLOYMENT.md)）
+- **文件上传**：
+  - 使用阿里云 OSS SDK 实现浏览器直传
+  - 通过 STS 临时凭证确保安全性
+  - 上传流量不占用 Vercel 带宽
 
 - **错误处理**：对常见 API 问题进行全面的错误解析（SafetyError、InvalidParameter、TooLarge、AuthenticationNotPass、Throttling）
 
@@ -184,10 +185,12 @@ interface TokenUsage {
 ## 视频文件处理
 
 - **支持格式**：MP4、MOV、AVI、WebM、MKV
-- **文件大小限制**：100MB（通过 tmpfile.link 临时文件服务）
-- **上传方式**：自动上传到临时文件服务，获取 URL 后传给 AI
-- **文件保存期限**：7 天自动删除（tmpfile.link 免费服务）
-- **安全性**：视频会经过 API 的内容安全检查
+- **文件大小限制**：100MB
+- **上传方式**：浏览器直传到阿里云 OSS（无需经过服务器）
+- **安全机制**：
+  - 使用 STS 临时凭证，权限自动过期（1 小时）
+  - 视频会经过 AI API 的内容安全检查
+  - 上传流量不占用 Vercel 带宽
 
 ## 关键实现要点
 
@@ -197,14 +200,48 @@ interface TokenUsage {
 - 视频预览使用对象 URL，并在清理时正确释放
 - **代码优化**：videoAnalysis.ts 已从 747 行简化到 198 行，移除了流式输出和 base64 备用方案
 
-## 临时文件服务集成
+## 阿里云 OSS 集成
 
-应用集成了 tmpfile.link 免费临时文件服务来支持大文件上传：
+应用使用阿里云对象存储服务（OSS）实现视频文件的浏览器直传：
 
-- **服务地址**：<https://tmpfile.link>
-- **最大文件**：100MB
-- **保存期限**：7 天自动删除
-- **全球 CDN**：支持全球加速下载
-- **无需注册**：匿名上传即可使用
+### 架构设计
 
-详细的部署配置和反向代理设置请参见 [DEPLOYMENT.md](DEPLOYMENT.md)。
+- **浏览器直传**：视频文件直接从浏览器上传到 OSS，不经过 Vercel 服务器
+- **STS 临时凭证**：通过 Vercel Edge Function 生成临时访问凭证，确保安全性
+- **自动过期**：临时凭证有效期 1 小时，过期后自动失效
+
+### OSS 集成核心文件
+
+**[api/oss-sts.ts](api/oss-sts.ts)** - Vercel Edge Function：
+
+- 调用阿里云 STS API 生成临时凭证
+- 实现完整的阿里云 API 签名算法（HMAC-SHA1）
+- 返回 accessKeyId、accessKeySecret、securityToken 等信息
+
+**[temporaryFile.ts](src/api/temporaryFile.ts)** - 前端上传逻辑：
+
+- 使用 ali-oss SDK（v6.23.0）实现浏览器直传
+- 自动获取 STS 临时凭证
+- 支持上传进度回调
+- 生成唯一文件名（`videos/{timestamp}-{random}.{ext}`）
+
+### 环境变量配置
+
+在 Vercel 项目设置中配置以下环境变量：
+
+```bash
+ALIYUN_ACCESS_KEY_ID=your_access_key_id
+ALIYUN_ACCESS_KEY_SECRET=your_access_key_secret
+ALIYUN_ROLE_ARN=acs:ram::account-id:role/role-name
+ALIYUN_OSS_REGION=oss-cn-hangzhou
+ALIYUN_OSS_BUCKET=your-bucket-name
+```
+
+### RAM 角色权限
+
+需要创建一个 RAM 角色，并授予以下权限：
+
+- `oss:PutObject` - 允许上传文件
+- `oss:GetObject` - 允许读取文件（可选，用于预览）
+
+详细配置步骤参见 [.env.example](.env.example) 文件。

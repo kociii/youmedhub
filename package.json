@@ -11,10 +11,12 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
+    "ali-oss": "^6.23.0",
     "vue": "^3.5.24",
     "vue-renderer-markdown": "0.0.63-beta.0"
   },
   "devDependencies": {
+    "@types/ali-oss": "^6.16.13",
     "@types/node": "^24.10.1",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.8.1",
