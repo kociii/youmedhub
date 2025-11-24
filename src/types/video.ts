@@ -19,3 +19,10 @@ export interface VideoAnalysisResponse {
 
 // 分析状态
 export type AnalysisStatus = 'idle' | 'uploading' | 'analyzing' | 'success' | 'error';
+
+// Token 使用统计
+export interface TokenUsage {
+  prompt_tokens: number;      // 输入 Tokens
+  completion_tokens: number;  // 输出 Tokens
+  total_tokens: number;       // 总计 Tokens
+}

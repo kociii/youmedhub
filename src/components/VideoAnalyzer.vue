@@ -177,22 +177,70 @@
                     <div class="mb-2 text-primary fw-bold">
                         <i class="bi bi-cloud-download me-2"></i>正在接收分析结果...
                     </div>
-                    <VueMarkdownRenderer :source="markdownContent" class="markdown-content" />
+                    <MarkdownRender
+                        :content="markdownContent"
+                        :viewport-priority="true"
+                        :code-block-stream="true"
+                        class="markdown-content"
+                    />
                 </div>
 
                 <!-- 结果表格 -->
                 <template v-if="hasResults && !showMarkdown">
-                    <div class="d-flex justify-content-between align-items-center p-3 bg-white border-bottom sticky-top">
-                        <span class="fw-bold text-primary"><i class="bi bi-check-all me-1"></i> {{ displayedItems.length }} 个场景</span>
+                    <div class="d-flex justify-content-between align-items-center p-3 bg-white border-bottom sticky-top" style="z-index: 10;">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="fw-bold text-primary"><i class="bi bi-check-all me-1"></i> {{ displayedItems.length }} 个场景</span>
+                            <span v-if="tokenUsage" class="badge bg-light text-secondary border" style="font-size: 0.7rem; font-weight: 400;">
+                                <i class="bi bi-cpu me-1"></i>
+                                输入: {{ tokenUsage.prompt_tokens.toLocaleString() }}
+                                <span class="mx-1">|</span>
+                                输出: {{ tokenUsage.completion_tokens.toLocaleString() }}
+                                <span class="mx-1">|</span>
+                                总计: {{ tokenUsage.total_tokens.toLocaleString() }}
+                            </span>
+                        </div>
+                        <button
+                            @click="showRawMode = !showRawMode"
+                            class="btn btn-sm btn-outline-secondary"
+                            style="font-size: 0.75rem;"
+                        >
+                            <i class="bi" :class="showRawMode ? 'bi-table' : 'bi-code-square'"></i>
+                            {{ showRawMode ? '切换到表格' : '切换到原始' }}
+                        </button>
                     </div>
-                    <table class="table table-hover align-middle mb-0">
+
+                    <!-- 原始 Markdown 显示 -->
+                    <div v-if="showRawMode" class="p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-secondary mb-0">
+                                <i class="bi bi-table me-2"></i>Markdown 表格视图
+                            </h6>
+                            <button
+                                @click="copyMarkdownToClipboard($event)"
+                                class="btn btn-sm btn-outline-primary"
+                                style="font-size: 0.75rem;"
+                            >
+                                <i class="bi bi-clipboard me-1"></i>复制原始内容
+                            </button>
+                        </div>
+                        <div class="raw-markdown-render">
+                            <MarkdownRender
+                                :content="markdownContent"
+                                class="markdown-content"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- 表格显示 -->
+                    <table v-else class="table table-hover align-middle mb-0">
                         <thead>
                             <tr>
                                 <th style="width: 50px;">#</th>
-                                <th style="width: 80px;">景别</th>
-                                <th style="width: 80px;">运镜</th>
-                                <th style="width: 25%;">画面</th>
-                                <th>文案/口播</th>
+                                <th style="width: 70px;">景别</th>
+                                <th style="width: 70px;">运镜</th>
+                                <th style="width: 20%;">画面</th>
+                                <th style="width: 20%;">文案/口播</th>
+                                <th style="width: 120px;">音效/音乐</th>
                                 <th style="width: 150px;">时长</th>
                                 <th style="width: 220px;">视频片段</th>
                             </tr>
@@ -202,10 +250,15 @@
                                 <td class="text-center text-secondary">{{ item.sequenceNumber }}</td>
                                 <td><span class="badge bg-light text-dark border fw-normal">{{ item.shotType }}</span></td>
                                 <td><span class="badge bg-light text-dark border fw-normal">{{ item.cameraMovement }}</span></td>
-                                <td><small class="d-block text-wrap" style="max-height:4.5em;overflow:hidden;">{{ item.visualContent }}</small></td>
+                                <td><small class="d-block text-wrap text-with-breaks" style="max-height:4.5em;overflow:hidden;">{{ formatTextWithBreaks(item.visualContent) }}</small></td>
                                 <td>
-                                    <div class="small text-secondary mb-1"><i class="bi bi-card-text me-1"></i>{{ item.onScreenText !== '无' ? item.onScreenText : '-' }}</div>
-                                    <div class="small text-muted"><i class="bi bi-mic me-1"></i>{{ item.voiceover !== '无' ? item.voiceover : '-' }}</div>
+                                    <div class="small text-secondary mb-1 text-with-breaks"><i class="bi bi-card-text me-1"></i>{{ item.onScreenText !== '无' ? formatTextWithBreaks(item.onScreenText) : '-' }}</div>
+                                    <div class="small text-muted text-with-breaks"><i class="bi bi-mic me-1"></i>{{ item.voiceover !== '无' ? formatTextWithBreaks(item.voiceover) : '-' }}</div>
+                                </td>
+                                <td>
+                                    <small class="text-muted d-block text-wrap text-with-breaks" style="max-height:3em;overflow:hidden;">
+                                        <i class="bi bi-music-note-beamed me-1"></i>{{ item.audio !== '无' ? formatTextWithBreaks(item.audio) : '-' }}
+                                    </small>
                                 </td>
                                 <td class="font-monospace small">
                                     <div class="mb-1">
@@ -272,16 +325,18 @@
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, reactive, computed, nextTick, watch } from 'vue';
 import { analyzeVideo } from '../api/videoAnalysis';
-import type { VideoAnalysisResponse } from '../types/video';
+import type { VideoAnalysisResponse, TokenUsage } from '../types/video';
 import { parseTimeToSeconds } from '../utils/videoCapture';
 import VideoSegmentPlayer from './VideoPlayer/VideoSegmentPlayer.vue';
-import VueMarkdownRenderer from 'vue-renderer-markdown';
+import MarkdownRender from 'vue-renderer-markdown';
+import 'vue-renderer-markdown/index.css';
 import { saveAnalysisToLocal } from '../utils/localCache';
 
 const API_KEY_STORAGE_KEY = 'dashscope_api_key';
@@ -355,6 +410,8 @@ const error = ref('');
 const analysisResult = ref<VideoAnalysisResponse | null>(null);
 const markdownContent = ref(''); // 流式 Markdown 内容
 const showMarkdown = ref(false); // 是否显示 Markdown
+const showRawMode = ref(false); // 是否显示原始 Markdown（切换模式）
+const tokenUsage = ref<TokenUsage | null>(null); // Token 使用统计
 
 // 监控流式内容变化
 watch(markdownContent, (newVal) => {
@@ -417,6 +474,7 @@ const handleAnalyze = async () => {
   analysisResult.value = null;
   markdownContent.value = '';
   showMarkdown.value = false;
+  tokenUsage.value = null; // 重置 Token 统计
   progressMessage.value = '准备分析...';
   loadingStep.value = 1;
 
@@ -436,13 +494,31 @@ const handleAnalyze = async () => {
           loadingStep.value = 1;
         } else if (message.includes('分析') || message.includes('接收')) {
           loadingStep.value = 2;
-          showMarkdown.value = true; // 开始显示 Markdown
+          // 不在这里设置 showMarkdown，等第一个 chunk 到达时再设置
         }
       },
       (chunk) => {
         // 流式回调：逐步追加 Markdown 内容
+        if (!showMarkdown.value) {
+          // 第一个 chunk 到达时才显示 Markdown 容器
+          showMarkdown.value = true;
+          console.log('[DEBUG] 开始显示流式 Markdown');
+        }
         markdownContent.value += chunk;
         console.log('[DEBUG] 流式内容更新，当前长度:', markdownContent.value.length);
+
+        // 自动滚动到底部，让用户看到最新内容
+        nextTick(() => {
+          const container = tableContainerRef.value;
+          if (container && showMarkdown.value) {
+            container.scrollTop = container.scrollHeight;
+          }
+        });
+      },
+      (usage) => {
+        // Token 使用回调
+        tokenUsage.value = usage;
+        console.log('[DEBUG] Token 统计:', usage);
       }
     );
 
@@ -497,6 +573,37 @@ const scrollToBottom = () => {
       });
     }
   });
+};
+
+// 复制 Markdown 到剪贴板
+// 将 <br> 标签转换为换行符
+const formatTextWithBreaks = (text: string): string => {
+  if (!text) return text;
+  // 替换 <br>、<br/>、<br />、<BR> 等各种形式为换行符
+  return text.replace(/<br\s*\/?>/gi, '\n');
+};
+
+// 复制 Markdown 到剪贴板
+const copyMarkdownToClipboard = async (event: Event) => {
+  try {
+    await navigator.clipboard.writeText(markdownContent.value);
+    // 使用更友好的提示
+    const btn = event.target as HTMLButtonElement;
+    if (btn) {
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check me-1"></i>已复制';
+      btn.classList.remove('btn-outline-primary');
+      btn.classList.add('btn-success');
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-outline-primary');
+      }, 2000);
+    }
+  } catch (err) {
+    console.error('复制失败:', err);
+    alert('复制失败，请手动复制');
+  }
 };
 </script>
 
@@ -789,13 +896,18 @@ const scrollToBottom = () => {
     font-weight: 600;
     padding: 0.75rem 1rem;
     position: sticky;
-    top: 0;
-    z-index: 10;
+    top: 48px; /* "x个场景"那一行的高度 */
+    z-index: 9; /* 比"x个场景"行低一级 */
 }
 
 .table tbody td {
     padding: 0.6rem 1rem;
     vertical-align: middle;
+}
+
+/* 处理 <br> 换行 */
+.text-with-breaks {
+    white-space: pre-line; /* 保留换行符但折叠多余空格 */
 }
 
 /* 视频片段容器 */
@@ -816,4 +928,16 @@ const scrollToBottom = () => {
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* 原始 Markdown 渲染容器 */
+.raw-markdown-render {
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    overflow: auto;
+}
+
+.raw-markdown-render .markdown-content {
+    padding: 1rem;
+}
 </style>

@@ -1,5 +1,6 @@
-import type { VideoAnalysisResponse } from '../types/video';
+import type { VideoAnalysisResponse, TokenUsage } from '../types/video';
 import { uploadToTemporaryFile, validateVideoFile } from './temporaryFile';
+import { VIDEO_ANALYSIS_PROMPT } from '../prompts/videoAnalysis';
 
 // AI 模型类型
 export type AIModel = 'qwen3-vl-flash' | 'qwen3-vl-plus';
@@ -7,72 +8,8 @@ export type AIModel = 'qwen3-vl-flash' | 'qwen3-vl-plus';
 // 流式输出回调类型
 export type StreamCallback = (chunk: string) => void;
 
-const ANALYSIS_PROMPT = `你是一个资深且专业的视频创作者,从业多年,不仅能够独立完成视频的脚本创作、视频拍摄、视频剪辑等工作,还能够很好的鉴赏、分析识别,准确的拆解一个视频的内容及要点内容。
-根据提供给你的视频,对视频进行分析,并结构化的输出你从视频中分析出的内容。
-
-输出要求:以 Markdown 表格格式输出
-表格标题:序号、景别、运镜方式、画面内容、画面文案、口播、音效/音乐、开始时间、结束时间、时长
-
-字段说明:
-- 序号: 场景序号
-- 景别: 镜头景别类型
-- 运镜方式: 运镜方式是视频中运镜的方式，包括平移、旋转、缩放、上摇、跟焦等
-- 画面内容: 画面中的内容描述，包括画面中的物体、人物、场景、行为、动作等
-- 画面文案: 画面中显示的花字文案、介绍文案、标语口号等
-- 口播: 视频中人物的说话内容、旁白、解说词等（不包括音效和音乐）
-- 音效/音乐: 视频中的背景音乐、环境音效、物品声音等（不包括人物说话）
-- 开始时间: 场景开始时间 (格式: MM:SS)
-- 结束时间: 场景结束时间 (格式: MM:SS)
-- 时长: 场景持续时间 (格式: MM:SS)
-
-其他要求:脚本不要拆的太细，单个片段要考虑内容的完整性，如：多句口播内容描述的是相同内容则可以合并为一个片段，但是单个片段不要超过15秒。
-
-请按照以下格式输出 Markdown 表格，不要包含其他文字说明:
-
-| 序号 | 景别 | 运镜方式 | 画面内容 | 画面文案 | 口播 | 音效/音乐 | 开始时间 | 结束时间 | 时长 |
-|------|------|----------|----------|----------|------|-----------|----------|----------|------|`;
-
-// const ANALYSIS_PROMPT = `你是一个资深且专业的视频创作者,从业多年,不仅能够独立完成视频的脚本创作、视频拍摄、视频剪辑等工作,还能够很好的鉴赏、分析识别,准确的拆解一个视频的内容及要点内容。
-// 根据提供给你的视频,对视频进行分析,并结构化的输出你从视频中分析出的内容。
-// 输出要求:以 json 结构输出
-// 表格标题:序号、景别、运镜方式、画面内容、画面文案、口播、音效/音乐、开始时间、结束时间、时长
-// 口播定义:口播是视频中人物的说话内容。
-// 运镜方式定义:运镜方式是视频中运镜的方式，包括平移、旋转、缩放、上摇、跟焦等。
-// 音效/音乐定义:音效/音乐是视频中背景音乐、环境音效、物品声音等音效。
-// 时长定义:时长是视频中每个画面或场景的持续时间，包括画面停留时间、画面切换时间、画面过渡时间等。
-// 开始时间定义:开始时间是指视频中每个画面或场景的开始时间。
-// 结束时间定义:结束时间是指视频中每个画面或场景的结束时间。
-// 其他要求：脚本不要拆的太细，单个片段要考虑内容的完整性，如：多句口播内容描述的是相同内容则可以合并为一个片段，但是单个片段不要超过15秒。
-// json格式字段对应:
-// {
-//   "rep": [
-//     {
-//       "sequenceNumber": 1,
-//       "shotType": "",
-//       "cameraMovement": "",
-//       "visualContent": "",
-//       "onScreenText": "",
-//       "voiceover": "",
-//       "audio": "",
-//       "startTime": "MM:SS",
-//       "endTime": "MM:SS",
-//       "duration": "MM:SS",
-//     }
-//   ]
-// }
-// 字段说明:
-// - sequenceNumber: 序号
-// - shotType: 景别
-// - cameraMovement: 运镜方式
-// - visualContent: 画面内容
-// - onScreenText: 画面文案
-// - voiceover: 口播
-// - audio: 音效/音乐
-// - startTime: 开始时间
-// - endTime: 结束时间
-// - duration: 时长
-
-// 请只返回JSON格式的结果，不要包含其他文字说明。`;
+// Token 使用回调类型
+export type TokenUsageCallback = (usage: TokenUsage) => void;
 
 // 解析 Markdown 表格转换为 JSON
 function parseMarkdownTable(markdown: string): VideoAnalysisResponse {
@@ -181,7 +118,8 @@ async function analyzeVideoByUrl(
   apiKey: string,
   model: AIModel,
   onProgress?: (message: string) => void,
-  onStream?: StreamCallback
+  onStream?: StreamCallback,
+  onTokenUsage?: TokenUsageCallback
 ): Promise<VideoAnalysisResponse> {
   onProgress?.('正在调用 AI 分析视频...');
 
@@ -205,12 +143,13 @@ async function analyzeVideoByUrl(
             },
             {
               type: 'text',
-              text: ANALYSIS_PROMPT,
+              text: VIDEO_ANALYSIS_PROMPT,
             },
           ],
         },
       ],
       stream: true, // 启用流式输出
+      stream_options: { include_usage: true }, // 获取 Token 使用信息
     }),
   });
 
@@ -258,6 +197,12 @@ async function analyzeVideoByUrl(
               fullContent += content;
               onStream?.(content); // 调用流式回调
             }
+
+            // 最后一个 chunk 包含 usage 信息
+            if (json.usage) {
+              onTokenUsage?.(json.usage);
+              console.log('[DEBUG] Token 使用统计:', json.usage);
+            }
           } catch (e) {
             // 忽略解析错误，继续处理下一行
             console.warn('解析 SSE 数据失败:', e);
@@ -287,7 +232,8 @@ async function analyzeVideoByTemporaryFile(
   apiKey: string,
   model: AIModel,
   onProgress?: (message: string) => void,
-  onStream?: StreamCallback
+  onStream?: StreamCallback,
+  onTokenUsage?: TokenUsageCallback
 ): Promise<VideoAnalysisResponse> {
   // 验证文件
   const validation = validateVideoFile(file);
@@ -304,7 +250,7 @@ async function analyzeVideoByTemporaryFile(
     onProgress?.('视频上传成功，正在调用 AI 分析...');
 
     // 使用返回的链接进行分析
-    return await analyzeVideoByUrl(uploadResult.downloadLink, apiKey, model, onProgress, onStream);
+    return await analyzeVideoByUrl(uploadResult.downloadLink, apiKey, model, onProgress, onStream, onTokenUsage);
 
   } catch (error) {
     if (error instanceof Error) {
@@ -320,13 +266,14 @@ export async function analyzeVideo(
   apiKey: string,
   model: AIModel = 'qwen3-vl-flash',
   onProgress?: (message: string) => void,
-  onStream?: StreamCallback
+  onStream?: StreamCallback,
+  onTokenUsage?: TokenUsageCallback
 ): Promise<VideoAnalysisResponse> {
   if (typeof source === 'string') {
     // 如果是 URL，直接分析
-    return analyzeVideoByUrl(source, apiKey, model, onProgress, onStream);
+    return analyzeVideoByUrl(source, apiKey, model, onProgress, onStream, onTokenUsage);
   } else {
     // 如果是文件，通过临时文件服务上传后分析
-    return analyzeVideoByTemporaryFile(source, apiKey, model, onProgress, onStream);
+    return analyzeVideoByTemporaryFile(source, apiKey, model, onProgress, onStream, onTokenUsage);
   }
 }
