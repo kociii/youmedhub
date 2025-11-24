@@ -29,10 +29,21 @@
         <!-- 上传与控制卡片 -->
         <div class="custom-card flex-grow-1 d-flex flex-column">
           <div class="card-body-custom flex-grow-1 d-flex flex-column">
-            <!-- 标题 -->
-            <h6 class="fw-bold mb-3 text-dark" style="font-size: 0.9rem;">
-              <i class="bi bi-cloud-arrow-up me-2 text-primary"></i>视频源
-            </h6>
+            <!-- 标题与模型选择 -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">
+                <i class="bi bi-cloud-arrow-up me-2 text-primary"></i>视频源
+              </h6>
+              <select
+                v-model="selectedModel"
+                class="form-select form-select-sm"
+                style="width: auto; font-size: 0.75rem;"
+                :disabled="isAnalyzing"
+              >
+                <option value="qwen3-vl-flash">qwen3-vl-flash</option>
+                <option value="qwen3-vl-plus">qwen3-vl-plus</option>
+              </select>
+            </div>
 
             <!-- 上传区域 -->
             <div 
@@ -278,6 +289,7 @@ const tableContainerRef = ref<HTMLElement | null>(null);
 const isDragOver = ref(false);
 const activeTab = ref('current');
 const loadingStep = ref(1);
+const selectedModel = ref<'qwen3-vl-flash' | 'qwen3-vl-plus'>('qwen3-vl-flash');
 
 // 从 localStorage 加载 API Key
 onMounted(() => {
@@ -398,6 +410,7 @@ const handleAnalyze = async () => {
     const result = await analyzeVideo(
       videoFile.value,
       apiKey.value,
+      selectedModel.value,
       (message) => {
         progressMessage.value = message;
         // 根据消息内容判断步骤
