@@ -46,7 +46,7 @@
             >
               <i class="bi bi-cloud-upload upload-icon"></i>
               <h6 class="mb-1 fw-bold text-dark" style="font-size: 0.9rem;">点击或拖拽上传</h6>
-              <p class="text-muted small mb-0">支持 MP4, MOV, AVI 等格式</p>
+              <p class="text-muted small mb-0">支持 MP4, MOV, AVI 等格式（文件大小 < 8MB，推荐使用在线视频 URL）</p>
               <input 
                 ref="fileInputRef" 
                 type="file" 
