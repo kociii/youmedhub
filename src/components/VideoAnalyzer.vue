@@ -49,6 +49,10 @@
               <i class="bi bi-cloud-upload upload-icon"></i>
               <h6 class="mb-1 fw-bold text-dark" style="font-size: 0.9rem;">点击或拖拽上传</h6>
               <p class="text-muted small mb-0">支持 MP4, MOV, AVI 等格式（文件大小 < 100MB，通过临时文件服务上传）</p>
+              <p v-if="!isFileSystemAccessSupported()" class="text-warning small mb-0 mt-2">
+                <i class="bi bi-info-circle me-1"></i>
+                当前浏览器不支持文件句柄功能，历史记录将无法保存视频路径
+              </p>
               <input 
                 ref="fileInputRef" 
                 type="file" 
@@ -155,7 +159,7 @@
 
         <div class="tab-content h-100" id="resultTabContent">
           <!-- 当前分析结果 -->
-          <div v-show="activeTab === 'current'" class="tab-pane fade show active h-100 d-flex flex-column">
+          <div v-if="activeTab === 'current'" class="tab-pane h-100 d-flex flex-column">
             <div id="resultsContainer" ref="tableContainerRef">
                 <!-- 空状态 -->
                 <div v-if="!hasResults && !isAnalyzing && !showMarkdown" class="d-flex flex-column align-items-center justify-content-center h-100 text-muted" style="min-height: 300px;">
@@ -296,13 +300,9 @@
             </div>
           </div>
 
-          <!-- 历史记录 (Placeholder) -->
-          <div v-show="activeTab === 'history'" class="tab-pane fade show active h-100">
-            <div class="p-3 overflow-auto h-100">
-                <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
-                    <p>暂无历史记录</p>
-                </div>
-            </div>
+          <!-- 历史记录 -->
+          <div v-if="activeTab === 'history'" class="tab-pane h-100 d-flex flex-column" style="min-height: 400px; position: relative;">
+            <HistoryView ref="historyViewRef" :on-load-record="handleLoadHistoryRecord" />
           </div>
         </div>
       </main>
@@ -345,6 +345,17 @@ import { parseTimeToSeconds } from '../utils/videoCapture';
 import VideoSegmentPlayer from './VideoPlayer/VideoSegmentPlayer.vue';
 import { saveAnalysisToLocal } from '../utils/localCache';
 import MarkdownRender from './MarkdownRender.vue';
+import HistoryView from './HistoryView.vue';
+import {
+  saveHistoryRecord,
+  getHistoryRecordById,
+  getVideoFileFromHandle,
+  isFileSystemAccessSupported,
+  getFilePathFromLocalStorage,
+  saveFileHandleToCache,
+  loadFileHandle,
+} from '../utils/historyStorage';
+import { getFileHandleFromPicker, getFileFromHandle } from '../utils/fileHandle';
 
 const API_KEY_STORAGE_KEY = 'dashscope_api_key';
 
@@ -356,6 +367,11 @@ const tableContainerRef = ref<HTMLElement | null>(null);
 const isDragOver = ref(false);
 const activeTab = ref('current');
 const loadingStep = ref(1);
+
+// 调试：监听 tab 切换
+watch(activeTab, (newTab) => {
+  console.log('[Tab切换] 当前标签:', newTab);
+});
 // 固定使用 qwen3-vl-flash 模型
 const selectedModel = 'qwen3-vl-flash' as const;
 
@@ -364,6 +380,11 @@ onMounted(() => {
   const savedApiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
   if (savedApiKey) {
     apiKey.value = savedApiKey;
+  }
+  
+  // 检查浏览器兼容性
+  if (!isFileSystemAccessSupported()) {
+    console.warn('[浏览器兼容性] 当前浏览器不支持 File System Access API');
   }
 });
 
@@ -381,6 +402,8 @@ const videoFile = ref<File | null>(null);
 const videoUrl = ref('');
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const videoRef = ref<HTMLVideoElement | null>(null);
+const videoFileHandle = ref<FileSystemFileHandle | null>(null); // 文件句柄
+const historyViewRef = ref<InstanceType<typeof HistoryView> | null>(null);
 
 // 视频信息
 const videoInfo = reactive({
@@ -430,30 +453,54 @@ watch(showMarkdown, (newVal) => {
   console.log('[DEBUG] showMarkdown 更新:', newVal);
 });
 
-// 触发文件选择
-const triggerFileInput = () => {
+// 触发文件选择（优先使用 File System Access API）
+const triggerFileInput = async () => {
+  // 检查是否支持 File System Access API
+  if (isFileSystemAccessSupported()) {
+    try {
+      const fileHandle = await getFileHandleFromPicker();
+      if (fileHandle) {
+        const file = await getFileFromHandle(fileHandle);
+        processFile(file, fileHandle);
+      }
+    } catch (err) {
+      console.error('[文件选择] File System Access API 失败，使用传统方式:', err);
+      // 降级到传统文件选择
   fileInputRef.value?.click();
+    }
+  } else {
+    // 不支持 File System Access API，使用传统文件选择
+    fileInputRef.value?.click();
+  }
 };
 
-// 处理文件选择
+// 处理文件选择（传统方式）
 const handleFileChange = (event: Event) => {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
-  processFile(file);
+  processFile(file, null); // 传统方式无法获取文件句柄
 };
 
 const handleDrop = (event: DragEvent) => {
     isDragOver.value = false;
     const file = event.dataTransfer?.files[0];
-    processFile(file);
+    processFile(file, null); // 拖拽方式无法获取文件句柄
 };
 
-const processFile = (file: File | undefined) => {
+const processFile = (file: File | undefined, fileHandle: FileSystemFileHandle | null) => {
     if (file && file.type.startsWith('video/')) {
+        // 清理旧的 ObjectURL
+        if (videoUrl.value) {
+            URL.revokeObjectURL(videoUrl.value);
+        }
+        
         videoFile.value = file;
+        videoFileHandle.value = fileHandle;
         videoUrl.value = URL.createObjectURL(file);
         error.value = '';
         analysisResult.value = null;
+        markdownContent.value = '';
+        showMarkdown.value = false;
     } else if (file) {
         error.value = '请选择有效的视频文件';
     }
@@ -465,8 +512,11 @@ const clearVideo = () => {
     URL.revokeObjectURL(videoUrl.value);
   }
   videoFile.value = null;
+  videoFileHandle.value = null;
   videoUrl.value = '';
   analysisResult.value = null;
+  markdownContent.value = '';
+  showMarkdown.value = false;
   error.value = '';
   if (fileInputRef.value) {
     fileInputRef.value.value = '';
@@ -541,7 +591,31 @@ const handleAnalyze = async () => {
     analysisResult.value = result;
     showMarkdown.value = false; // 隐藏 Markdown，显示表格
 
-    // 保存到本地缓存（仅开发环境）
+    // 保存到历史记录
+    if (videoFile.value) {
+      try {
+        await saveHistoryRecord(
+          videoFile.value,
+          videoFileHandle.value,
+          selectedModel,
+          result,
+          markdownContent.value,
+          tokenUsage.value,
+          videoInfo.duration
+        );
+        console.log('[历史记录] 保存成功');
+        
+        // 刷新历史记录列表
+        if (historyViewRef.value) {
+          historyViewRef.value.refresh();
+        }
+      } catch (err) {
+        console.error('[历史记录] 保存失败:', err);
+        // 不影响主流程，只记录错误
+      }
+    }
+
+    // 保存到本地缓存（仅开发环境，保留兼容性）
     if (import.meta.env.DEV && videoFile.value) {
       await saveAnalysisToLocal(
         videoFile.value.name,
@@ -615,6 +689,154 @@ const copyMarkdownToClipboard = async (event: Event) => {
   } catch (err) {
     console.error('复制失败:', err);
     alert('复制失败，请手动复制');
+  }
+};
+
+// 从历史记录加载
+const handleLoadHistoryRecord = async (recordId: string) => {
+  try {
+    // 清理当前状态
+    clearVideo();
+
+    // 加载历史记录
+    const record = await getHistoryRecordById(recordId);
+    if (!record) {
+      alert('历史记录不存在');
+      return;
+    }
+
+    // 首先尝试从持久化存储加载文件句柄（包括 IndexedDB 和内存缓存）
+    let fileHandle: FileSystemFileHandle | null = await loadFileHandle(recordId);
+    let file: File | null = null;
+
+    if (fileHandle) {
+      // 成功加载文件句柄，尝试直接使用
+      try {
+        console.log('[历史记录] 从持久化存储加载文件句柄成功');
+        file = await getVideoFileFromHandle(fileHandle);
+        console.log('[历史记录] 成功加载文件，无需用户选择');
+      } catch (err) {
+        console.warn('[历史记录] 文件句柄失效:', err);
+        const errorMessage = err instanceof Error ? err.message : '文件不可用';
+        
+        // 文件可能被移动或删除
+        if (errorMessage.includes('移动') || errorMessage.includes('删除') || errorMessage.includes('NotFound')) {
+          alert(`文件无法访问：${errorMessage}\n\n文件可能已被移动或删除，请重新选择文件。`);
+        }
+        
+        // 文件句柄失效，清除缓存
+        fileHandle = null;
+      }
+    }
+
+    // 如果内存缓存中没有或失效，需要用户重新选择文件
+    if (!file) {
+      // 从 localStorage 获取文件路径信息（如果有）
+      const savedFilePath = getFilePathFromLocalStorage(recordId);
+      
+      // 提示用户选择文件，显示保存的文件路径信息
+      const shouldSelectFile = confirm(
+        `需要选择视频文件来加载历史记录。\n\n` +
+        `历史记录中的文件：${record.videoName}\n` +
+        (savedFilePath ? `保存的路径信息：${savedFilePath}\n\n` : '\n') +
+        `是否现在选择文件？`
+      );
+
+      if (!shouldSelectFile) {
+        return; // 用户取消
+      }
+
+      // 使用 File System Access API 选择文件
+      if (isFileSystemAccessSupported()) {
+        try {
+          fileHandle = await getFileHandleFromPicker();
+          if (fileHandle) {
+            file = await getFileFromHandle(fileHandle);
+            
+            // 将新选择的文件句柄保存到内存缓存
+            saveFileHandleToCache(recordId, fileHandle);
+            
+            // 验证文件名是否匹配（可选，用于提示用户）
+            if (file.name !== record.videoName) {
+              const continueAnyway = confirm(
+                `选择的文件名称 "${file.name}" 与历史记录中的 "${record.videoName}" 不一致。\n\n是否继续加载？`
+              );
+              if (!continueAnyway) {
+                return;
+              }
+            }
+          } else {
+            return; // 用户取消选择
+          }
+        } catch (err) {
+          console.error('[历史记录] 选择文件失败:', err);
+          alert('选择文件失败: ' + (err instanceof Error ? err.message : '未知错误'));
+          return;
+        }
+      } else {
+        // 降级到传统文件选择
+        const selectedFile = await new Promise<File | null>((resolve) => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'video/*';
+          input.onchange = (e) => {
+            const target = e.target as HTMLInputElement;
+            resolve(target.files?.[0] || null);
+          };
+          input.oncancel = () => {
+            resolve(null);
+          };
+          input.click();
+        });
+        
+        if (!selectedFile) {
+          return; // 用户取消选择
+        }
+        
+        file = selectedFile;
+        fileHandle = null; // 传统文件选择无法获取文件句柄
+      }
+    }
+
+    if (!file) {
+      alert('无法加载视频文件');
+      return;
+    }
+
+    // 设置视频文件
+    videoFile.value = file;
+    videoFileHandle.value = fileHandle; // 保存文件句柄到组件状态（当前会话有效）
+    videoUrl.value = URL.createObjectURL(file);
+
+    // 设置分析结果
+    analysisResult.value = record.analysisResult;
+    markdownContent.value = record.markdownContent;
+    tokenUsage.value = record.tokenUsage;
+    showMarkdown.value = false;
+    showRawMode.value = false;
+
+    // 更新视频信息
+    const ext = file.name.split('.').pop()?.toUpperCase() || 'MP4';
+    videoInfo.format = ext;
+    videoInfo.size = formatFileSize(file.size);
+    videoInfo.duration = record.videoDuration;
+
+    // 切换到"当前结果"标签页
+    activeTab.value = 'current';
+
+    // 等待视频加载完成后滚动
+    nextTick(() => {
+      if (videoRef.value) {
+        videoRef.value.addEventListener('loadedmetadata', () => {
+          scrollToBottom();
+        }, { once: true });
+      } else {
+        scrollToBottom();
+      }
+    });
+  } catch (err) {
+    console.error('[历史记录] 加载失败:', err);
+    alert(err instanceof Error ? err.message : '加载历史记录失败');
   }
 };
 </script>

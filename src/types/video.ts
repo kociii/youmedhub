@@ -26,3 +26,32 @@ export interface TokenUsage {
   completion_tokens: number;  // 输出 Tokens
   total_tokens: number;       // 总计 Tokens
 }
+
+// 历史记录
+export interface HistoryRecord {
+  id: string;                    // 唯一ID（时间戳+随机字符串）
+  timestamp: string;             // ISO时间戳
+  videoName: string;              // 视频文件名
+  videoSize: number;             // 视频文件大小（字节）
+  videoDuration: string;           // 视频时长（MM:SS格式）
+  videoFormat: string;            // 视频格式（MP4等）
+  fileHandle: FileSystemFileHandle | null;  // 文件句柄（无法序列化，不存储）
+  filePath: string | null;        // 文件路径信息（存储在localStorage，格式：recordId -> path）
+  model: string;                  // AI模型名称
+  analysisResult: VideoAnalysisResponse;    // 分析结果
+  markdownContent: string;        // Markdown原始内容
+  tokenUsage: TokenUsage | null;   // Token使用统计
+}
+
+// 历史记录列表项（不包含文件句柄，用于列表展示）
+export interface HistoryRecordItem {
+  id: string;
+  timestamp: string;
+  videoName: string;
+  videoSize: number;
+  videoDuration: string;
+  videoFormat: string;
+  model: string;
+  sceneCount: number;             // 场景数量（从analysisResult.rep.length获取）
+  tokenUsage: TokenUsage | null;
+}
