@@ -12,6 +12,8 @@
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "ali-oss": "^6.23.0",
+    "bootstrap": "5.3.0",
+    "bootstrap-icons": "1.10.0",
     "markdown-it": "^14.1.0",
     "markdown-it-emoji": "^3.0.0",
     "markdown-it-footnote": "^4.0.0",
