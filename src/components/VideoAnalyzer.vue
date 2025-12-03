@@ -207,14 +207,23 @@
                                 总计: {{ tokenUsage.total_tokens.toLocaleString() }}
                             </span>
                         </div>
-                        <button
-                            @click="showRawMode = !showRawMode"
-                            class="btn btn-sm btn-outline-secondary"
-                            style="font-size: 0.75rem;"
-                        >
-                            <i class="bi" :class="showRawMode ? 'bi-table' : 'bi-code-square'"></i>
-                            {{ showRawMode ? '切换到表格' : '切换到原始' }}
-                        </button>
+                        <div class="d-flex gap-2">
+                            <button
+                                @click="exportToExcel(displayedItems, videoFile?.name?.replace(/\.[^/.]+$/, '') || '视频分析结果')"
+                                class="btn btn-sm btn-outline-success"
+                                style="font-size: 0.75rem;"
+                            >
+                                <i class="bi bi-file-earmark-excel me-1"></i>导出 Excel
+                            </button>
+                            <button
+                                @click="showRawMode = !showRawMode"
+                                class="btn btn-sm btn-outline-secondary"
+                                style="font-size: 0.75rem;"
+                            >
+                                <i class="bi" :class="showRawMode ? 'bi-table' : 'bi-code-square'"></i>
+                                {{ showRawMode ? '切换到表格' : '切换到原始' }}
+                            </button>
+                        </div>
                     </div>
 
                     <!-- 原始 Markdown 显示 -->
@@ -345,6 +354,7 @@ import { parseTimeToSeconds } from '../utils/videoCapture';
 import VideoSegmentPlayer from './VideoPlayer/VideoSegmentPlayer.vue';
 import { saveAnalysisToLocal } from '../utils/localCache';
 import MarkdownRender from './MarkdownRender.vue';
+import { exportToExcel } from '../utils/exportExcel';
 
 const API_KEY_STORAGE_KEY = 'dashscope_api_key';
 
