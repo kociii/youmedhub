@@ -69,21 +69,27 @@ class AIService:
 
         # 根据模型类型构建消息内容
         content = []
-        # Qwen-VL 系列通常使用 type: video
-        if "qwen" in config.get("name", "").lower():
+        model_name_lower = config.get("name", "").lower()
+
+        # Qwen-VL 系列使用 type: video
+        if "qwen" in model_name_lower:
             content.append({"type": "video", "video": video_url})
+        # GLM 系列使用 type: video_url
+        elif "glm" in model_name_lower:
+            content.append({"type": "video_url", "video_url": video_url})
         else:
             # 其他模型尝试使用标准的 video_url 格式
             content.append({"type": "video_url", "video_url": {"url": video_url}})
-        
+
         content.append({"type": "text", "text": prompt})
 
         try:
             logger.info(
-                "ai_stream calling API model_id=%s model_name=%s stream=True extra_body=%s",
+                "ai_stream calling API model_id=%s model_name=%s stream=True extra_body=%s content=%s",
                 model_id,
                 config["name"],
                 extra_body,
+                content,
             )
             stream = await client.chat.completions.create(
                 model=config["name"],

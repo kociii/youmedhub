@@ -3,12 +3,31 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import analysis, system
 from app.database import create_tables
 import logging
+from logging.handlers import RotatingFileHandler
+import os
 
 
+# 创建 logs 目录
+os.makedirs("logs", exist_ok=True)
+
+# 配置根日志
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
+
+# 为 AI 服务配置独立的日志文件
+ai_logger = logging.getLogger("app.services.ai_service")
+ai_handler = RotatingFileHandler(
+    "logs/ai_tasks.log",
+    maxBytes=10*1024*1024,  # 10MB
+    backupCount=5
+)
+ai_handler.setFormatter(logging.Formatter(
+    "%(asctime)s %(levelname)s: %(message)s"
+))
+ai_logger.addHandler(ai_handler)
+ai_logger.setLevel(logging.DEBUG)
 
 app = FastAPI(
     title="YouMedHub API",
