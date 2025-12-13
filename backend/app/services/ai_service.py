@@ -1,4 +1,4 @@
-from openai import OpenAI
+from openai import AsyncOpenAI
 from app.services.model_service import ModelService
 from typing import List, Dict, AsyncGenerator
 import json
@@ -20,7 +20,7 @@ class AIService:
             raise ValueError(f"模型 {model_id} 未配置 API Key")
 
         if model_id not in self.clients:
-            self.clients[model_id] = OpenAI(
+            self.clients[model_id] = AsyncOpenAI(
                 api_key=config["api_key"],
                 base_url=config["base_url"]
             )
@@ -79,7 +79,13 @@ class AIService:
         content.append({"type": "text", "text": prompt})
 
         try:
-            stream = client.chat.completions.create(
+            logger.info(
+                "ai_stream calling API model_id=%s model_name=%s stream=True extra_body=%s",
+                model_id,
+                config["name"],
+                extra_body,
+            )
+            stream = await client.chat.completions.create(
                 model=config["name"],
                 messages=[
                     {
@@ -90,6 +96,7 @@ class AIService:
                 stream=True,
                 extra_body=extra_body
             )
+            logger.info("ai_stream API call created, starting to iterate stream model_id=%s", model_id)
         except Exception as e:
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
             logger.exception(
@@ -102,12 +109,27 @@ class AIService:
 
         full_content = ""
         chunks = 0
+        first_chunk_time = None
         try:
-            for chunk in stream:
+            async for chunk in stream:
                 chunks += 1
+                if chunks == 1:
+                    first_chunk_time = time.perf_counter()
+                    logger.info(
+                        "ai_stream first_chunk model_id=%s elapsed_ms=%s",
+                        model_id,
+                        int((first_chunk_time - start_time) * 1000),
+                    )
+
                 if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                     content = chunk.choices[0].delta.content
                     full_content += content
+                    logger.debug(
+                        "ai_stream chunk model_id=%s chunk_num=%s content_len=%s",
+                        model_id,
+                        chunks,
+                        len(content),
+                    )
                     yield {"type": "content", "data": content}
 
             yield {"type": "done", "data": full_content}

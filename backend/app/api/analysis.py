@@ -81,6 +81,11 @@ async def stream_analysis(request: StreamAnalysisRequest):
                         elapsed_ms,
                         chunk.get("type") if isinstance(chunk, dict) else type(chunk).__name__,
                     )
+                logger.debug(
+                    "stream_analysis yielding chunk request_id=%s chunk_num=%s",
+                    request_id,
+                    chunks,
+                )
                 yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
