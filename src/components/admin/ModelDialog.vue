@@ -66,7 +66,11 @@ const handleSave = () => {
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">提供商</label>
-          <input v-model="form.provider" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" />
+          <select v-model="form.provider" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none">
+            <option value="">请选择提供商</option>
+            <option value="aliyun">阿里云 (Qwen)</option>
+            <option value="智谱">智谱 (GLM)</option>
+          </select>
         </div>
 
         <div>

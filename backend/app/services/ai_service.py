@@ -58,28 +58,28 @@ class AIService:
                 pass
 
         logger.info(
-            "ai_stream start model_id=%s model_name=%s base_url=%s enable_thinking=%s extra_body_keys=%s video_url=%s",
+            "ai_stream start model_id=%s model_name=%s provider=%s base_url=%s enable_thinking=%s extra_body_keys=%s video_url=%s",
             model_id,
             config.get("name"),
+            config.get("provider"),
             config.get("base_url"),
             enable_thinking,
             list(extra_body.keys()) if isinstance(extra_body, dict) else [],
             video_url,
         )
 
-        # 根据模型类型构建消息内容
+        # 根据渠道构建消息内容
+        provider = config.get("provider", "").lower()
         content = []
-        model_name_lower = config.get("name", "").lower()
 
-        # Qwen-VL 系列使用 type: video
-        if "qwen" in model_name_lower:
+        # 阿里云 Qwen 系列：type: video
+        if provider == "aliyun":
             content.append({"type": "video", "video": video_url})
-        # GLM 系列使用 type: video_url
-        elif "glm" in model_name_lower:
-            content.append({"type": "video_url", "video_url": video_url})
-        else:
-            # 其他模型尝试使用标准的 video_url 格式
+        # 智谱 GLM 系列：type: video_url 嵌套格式
+        elif provider == "智谱":
             content.append({"type": "video_url", "video_url": {"url": video_url}})
+        else:
+            raise ValueError(f"不支持的渠道: {provider}，目前仅支持 aliyun 和智谱")
 
         content.append({"type": "text", "text": prompt})
 
