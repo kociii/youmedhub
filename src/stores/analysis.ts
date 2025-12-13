@@ -13,10 +13,16 @@ export interface ScriptSegment {
 
 export const useAnalysisStore = defineStore('analysis', () => {
   const videoUrl = ref<string>('')
+  const videoFile = ref<File | null>(null)
   const isAnalyzing = ref(false)
   const progress = ref(0)
   const segments = ref<ScriptSegment[]>([])
   const currentSegmentId = ref<number | null>(null)
+  const rawResponse = ref<string>('')
+  
+  // New state for configuration
+  const selectedModel = ref<string>('')
+  const enableThinking = ref<boolean>(false)
 
   // Mock data generation
   const generateMockData = () => {
@@ -91,18 +97,27 @@ export const useAnalysisStore = defineStore('analysis', () => {
     videoUrl.value = url
   }
 
+  const setVideoFile = (file: File | null) => {
+    videoFile.value = file
+  }
+
   const setCurrentSegment = (id: number) => {
     currentSegmentId.value = id
   }
 
   return {
     videoUrl,
+    videoFile,
     isAnalyzing,
     progress,
     segments,
     currentSegmentId,
+    rawResponse,
+    selectedModel,
+    enableThinking,
     startAnalysis,
     setVideoUrl,
+    setVideoFile,
     setCurrentSegment
   }
 })

@@ -1,23 +1,60 @@
 <script setup lang="ts">
+import { ref, watch, nextTick, computed } from 'vue'
 import { useAnalysisStore } from '@/stores/analysis'
 import { storeToRefs } from 'pinia'
-import { Download, Copy, PlayCircle } from 'lucide-vue-next'
+import { Download, Copy, FileText, History } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import MarkdownIt from 'markdown-it'
 
 const store = useAnalysisStore()
-const { segments } = storeToRefs(store)
+const { rawResponse, isAnalyzing } = storeToRefs(store)
+const scrollContainer = ref<HTMLElement | null>(null)
+const md = new MarkdownIt()
 
-const handlePlaySegment = (startTime: string) => {
-  console.log('Play segment at', startTime)
-  // In a real app, this would seek the video player
-}
+const viewMode = ref<'result' | 'history'>('result')
+
+const renderedContent = computed(() => {
+  if (!rawResponse.value) return ''
+  try {
+    return md.render(rawResponse.value)
+  } catch (e) {
+    return rawResponse.value
+  }
+})
+
+watch(rawResponse, () => {
+  nextTick(() => {
+    if (scrollContainer.value) {
+      scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight
+    }
+  })
+})
 </script>
 
 <template>
-  <div class="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-full overflow-hidden">
-    <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-      <h2 class="font-semibold text-slate-700">分析结果 ({{ segments.length }} 个片段)</h2>
+  <div class="bg-white rounded-lg border border-gray-200 flex flex-col h-full overflow-hidden">
+    <div class="p-4 border-b border-gray-200 flex justify-between items-center">
       <div class="flex gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          :class="viewMode === 'result' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'"
+          @click="viewMode = 'result'"
+        >
+          <FileText class="w-4 h-4 mr-2" />
+          分析结果
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          :class="viewMode === 'history' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'"
+          @click="viewMode = 'history'"
+        >
+          <History class="w-4 h-4 mr-2" />
+          历史记录
+        </Button>
+      </div>
+      <div v-if="viewMode === 'result'" class="flex gap-2">
         <Button variant="outline" size="sm" class="gap-2">
           <Copy class="w-4 h-4" />
           复制全部
@@ -29,53 +66,20 @@ const handlePlaySegment = (startTime: string) => {
       </div>
     </div>
 
-    <div class="flex-1 overflow-auto">
-      <table class="w-full text-sm text-left">
-        <thead class="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0 z-10">
-          <tr>
-            <th class="px-4 py-3 w-24">时间轴</th>
-            <th class="px-4 py-3 w-1/4">画面描述</th>
-            <th class="px-4 py-3 w-1/4">口播内容</th>
-            <th class="px-4 py-3">音频/备注</th>
-            <th class="px-4 py-3 w-16">操作</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          <tr v-if="segments.length === 0">
-            <td colspan="5" class="px-4 py-8 text-center text-slate-400">
-              暂无分析数据，请先开始分析
-            </td>
-          </tr>
-          <tr 
-            v-for="segment in segments" 
-            :key="segment.id"
-            class="hover:bg-blue-50/50 transition-colors group"
-          >
-            <td class="px-4 py-3 font-mono text-slate-500">
-              {{ segment.startTime }} - {{ segment.endTime }}
-            </td>
-            <td class="px-4 py-3 text-slate-700">
-              {{ segment.visual }}
-            </td>
-            <td class="px-4 py-3 text-slate-700 font-medium">
-              {{ segment.content }}
-            </td>
-            <td class="px-4 py-3 text-slate-500">
-              {{ segment.audio }}
-            </td>
-            <td class="px-4 py-3">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                class="h-8 w-8 text-slate-400 hover:text-blue-500"
-                @click="handlePlaySegment(segment.startTime)"
-              >
-                <PlayCircle class="w-4 h-4" />
-              </Button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div v-if="viewMode === 'result'" class="flex-1 overflow-auto p-4" ref="scrollContainer">
+      <div v-if="!rawResponse" class="text-center text-gray-400 py-8">
+        暂无分析数据，请先开始分析
+      </div>
+      <div v-else class="bg-gray-50 rounded-lg p-4">
+        <h3 class="text-sm font-medium text-gray-700 mb-2">AI 原始返回内容：</h3>
+        <div class="prose prose-sm max-w-none text-gray-800" v-html="renderedContent"></div>
+      </div>
+    </div>
+
+    <div v-else class="flex-1 overflow-auto p-4">
+      <div class="text-center text-gray-400 py-8">
+        历史记录功能开发中...
+      </div>
     </div>
   </div>
 </template>
