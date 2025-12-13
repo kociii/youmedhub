@@ -177,6 +177,15 @@ wheels = [
 ]
 
 [[package]]
+name = "cachetools"
+version = "6.2.3"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/b5/44/5dc354b9f2df614673c2a542a630ef95d578b4a8673a1046d1137a7e2453/cachetools-6.2.3.tar.gz", hash = "sha256:64e0a4ddf275041dd01f5b873efa87c91ea49022b844b8c5d1ad3407c0f42f1f" }
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/ab/de/aa4cfc69feb5b3d604310214369979bb222ed0df0e2575a1b6e7af1a5579/cachetools-6.2.3-py3-none-any.whl", hash = "sha256:3fde34f7033979efb1e79b07ae529c2c40808bdd23b0b731405a48439254fba5" },
+]
+
+[[package]]
 name = "certifi"
 version = "2025.11.12"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
@@ -851,6 +860,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyjwt"
+version = "2.10.1"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/e7/46/bd74733ff231675599650d3e47f361794b22ef3e3770998dda30d3b63726/pyjwt-2.10.1.tar.gz", hash = "sha256:3cc5772eb20009233caf06e9d8a0577824723b44e6648ee0a2aedb6cf9381953" }
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/61/ad/689f02752eeec26aed679477e80e632ef1b682313be70793d798c1d5fc8f/PyJWT-2.10.1-py3-none-any.whl", hash = "sha256:dcdd193e30abefd5debf142f9adfcdd2b58004e644f25406ffaebd50bd98dacb" },
+]
+
+[[package]]
 name = "python-dotenv"
 version = "1.0.1"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
@@ -1309,6 +1327,7 @@ dependencies = [
     { name = "python-multipart" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "zai-sdk" },
 ]
 
 [package.metadata]
@@ -1327,4 +1346,21 @@ requires-dist = [
     { name = "python-multipart", specifier = "==0.0.12" },
     { name = "sqlalchemy", specifier = "==2.0.36" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.32.0" },
+    { name = "zai-sdk", specifier = "==0.1.0" },
+]
+
+[[package]]
+name = "zai-sdk"
+version = "0.1.0"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+dependencies = [
+    { name = "cachetools" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "pyjwt" },
+]
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/06/18/145b0a32db3926ed9b6b2ae03b6ad9204b3a57a89466dff16c3725351d46/zai_sdk-0.1.0.tar.gz", hash = "sha256:a8e196aaa45c668f9533b0e3459d1e5e0bd4b6b3cdaeef5942adce7415f96ad0" }
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/82/e8/127a84d137015bcdf06d8734307a285d42215ec4ee86d00c6166e0eda6f1/zai_sdk-0.1.0-py3-none-any.whl", hash = "sha256:e12592bb6c66060343cdb1c219c13a5082a510ad6f0ca1533a41764b3fcc4f9b" },
 ]
