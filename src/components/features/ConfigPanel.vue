@@ -5,6 +5,7 @@ import { useAnalysisStore } from '@/stores/analysis'
 import { storeToRefs } from 'pinia'
 import { Loader2, ChevronsUpDown } from 'lucide-vue-next'
 import userRequest from '@/utils/request'
+import { uploadToOSS } from '@/services/oss'
 
 const props = defineProps<{
   buttonOnly?: boolean
@@ -42,21 +43,10 @@ const handleAnalyze = async () => {
   store.rawResponse = ''
 
   try {
-    // 1. 先上传视频获取 URL
-    const formData = new FormData()
-    formData.append('file', videoFile.value)
-
-    const uploadResponse = await fetch('http://localhost:8000/api/analysis/upload', {
-      method: 'POST',
-      body: formData
+    // 1. 上传视频到 OSS
+    const uploadedVideoUrl = await uploadToOSS(videoFile.value, (percent) => {
+      store.progress = Math.min(percent * 0.3, 30) // 上传占 30% 进度
     })
-
-    if (!uploadResponse.ok) {
-      throw new Error('视频上传失败')
-    }
-
-    const uploadData = await uploadResponse.json()
-    const uploadedVideoUrl = uploadData.url
 
     // 2. 使用上传后的 URL 进行 AI 分析
     const response = await fetch('http://localhost:8000/api/analysis/stream', {
@@ -102,7 +92,7 @@ const handleAnalyze = async () => {
             if (data.type === 'content') {
               fullContent += data.data
               store.rawResponse = fullContent
-              store.progress = Math.min(store.progress + 2, 95)
+              store.progress = Math.min(30 + store.progress + 2, 95)
             } else if (data.type === 'done') {
               store.progress = 100
               store.rawResponse = data.data

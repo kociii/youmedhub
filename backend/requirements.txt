@@ -12,3 +12,5 @@ passlib[bcrypt]==1.7.4
 python-dotenv==1.0.1
 asyncpg==0.29.0
 psycopg2-binary==2.9.9
+alibabacloud-sts20150401>=1.1.0
+alibabacloud-tea-openapi>=0.3.0

@@ -25,14 +25,17 @@ const handleFileSelect = (e: Event) => {
   }
 }
 
+const ALLOWED_TYPES = ['video/mp4', 'video/avi', 'video/quicktime', 'video/x-msvideo']
+const MAX_SIZE = 50 * 1024 * 1024 // 50MB
+
 const handleFile = (file: File) => {
-  if (!file.type.startsWith('video/')) {
-    alert('请上传视频文件')
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    alert('仅支持 mp4、avi、mov 格式的视频')
     return
   }
 
-  if (file.size > 100 * 1024 * 1024) {
-    alert('文件大小不能超过 100MB')
+  if (file.size > MAX_SIZE) {
+    alert('文件大小不能超过 50MB')
     return
   }
 
@@ -63,7 +66,7 @@ const triggerUpload = () => {
     <input
       ref="fileInput"
       type="file"
-      accept="video/*"
+      accept=".mp4,.avi,.mov"
       class="hidden"
       @change="handleFileSelect"
     />
@@ -74,7 +77,7 @@ const triggerUpload = () => {
       </div>
       <div>
         <h3 class="text-base font-medium text-gray-700">点击或拖拽选择视频</h3>
-        <p class="text-sm text-gray-500 mt-1">支持 MP4, MOV, AVI 等格式 (最大 100MB)</p>
+        <p class="text-sm text-gray-500 mt-1">支持 MP4, MOV, AVI 格式 (最大 50MB)</p>
       </div>
     </div>
   </div>
