@@ -1,26 +1,18 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useAnalysisStore } from '@/stores/analysis'
 import { storeToRefs } from 'pinia'
 import { Download, Copy, FileText, History } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import MarkdownIt from 'markdown-it'
+import { Markdown } from 'vue-stream-markdown'
+import 'vue-stream-markdown/index.css'
+import 'vue-stream-markdown/theme.css'
 
 const store = useAnalysisStore()
 const { rawResponse, isAnalyzing } = storeToRefs(store)
 const scrollContainer = ref<HTMLElement | null>(null)
-const md = new MarkdownIt()
 
 const viewMode = ref<'result' | 'history'>('result')
-
-const renderedContent = computed(() => {
-  if (!rawResponse.value) return ''
-  try {
-    return md.render(rawResponse.value)
-  } catch (e) {
-    return rawResponse.value
-  }
-})
 
 watch(rawResponse, () => {
   nextTick(() => {
@@ -72,7 +64,7 @@ watch(rawResponse, () => {
       </div>
       <div v-else class="bg-gray-50 rounded-lg p-4">
         <h3 class="text-sm font-medium text-gray-700 mb-2">AI 原始返回内容：</h3>
-        <div class="prose prose-sm max-w-none text-gray-800" v-html="renderedContent"></div>
+        <Markdown :content="rawResponse" :mode="isAnalyzing ? 'streaming' : 'static'" />
       </div>
     </div>
 
