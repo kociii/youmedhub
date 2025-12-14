@@ -129,7 +129,7 @@ use_official_sdk = False
 
 ### 2. 阿里云 Qwen
 
-- **官方 SDK**: 使用 `image` 字段传视频，部分模型支持 `thinking`
+- **官方 SDK**: 使用 `video` 字段传视频，支持 `thinking`
 - **OpenAI 兼容**: 使用 `video_url` 字段，支持 `thinking`
 
 ```python

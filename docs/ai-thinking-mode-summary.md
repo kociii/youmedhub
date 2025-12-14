@@ -62,6 +62,17 @@ response = MultiModalConversation.call(
     stream=True,
     enable_thinking=enable_thinking  # 独立的布尔值参数
 )
+
+# 消息格式
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {"video": video_url, "fps": 4},  # fps 控制抽帧频率，默认为4
+            {"text": prompt}
+        ]
+    }
+]
 ```
 
 #### OpenAI 兼容实现
