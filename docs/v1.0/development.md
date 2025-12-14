@@ -19,12 +19,17 @@
 *   **Authentication**: OAuth2 with Password (Bearer JWT)
 *   **AI Integration**: OpenAI SDK / LangChain (适配多模型)
 *   **File Handling**: `python-multipart` (上传), `aiofiles`
-*   **External Upload Service**: `tmpfile.link`
-    *   **Endpoint**: `https://tmpfile.link/api/upload`
-    *   **Method**: `POST`
-    *   **Format**: `multipart/form-data` (field: `file`)
-    *   **Response**: JSON (`downloadLink` used for analysis)
-    *   **Limit**: Max 100MB per file (Anonymous), 7 days retention.
+*   **File Upload**: 阿里云 OSS 直传
+    *   **Method**: 前端直传（使用 STS 临时凭证）
+    *   **Flow**:
+        1. 前端请求 `GET /oss/sts-token` 获取临时凭证
+        2. 前端使用 OSS SDK 直传文件到阿里云 OSS
+        3. 获得文件 URL 后调用分析接口
+    *   **Advantages**:
+        - 减轻后端压力
+        - 上传速度更快
+        - 支持更大文件
+        - 文件存储更可靠
 
 ## 2. 数据库设计 (Database Schema)
 
@@ -80,17 +85,19 @@
 *   `POST /recharge`: 模拟充值 (Admin/Dev only for MVP)
 
 ### 3.3 Analysis (`/api/analysis`)
-*   `POST /upload`: 上传视频文件 (独立接口)
-    *   Input: `file` (Multipart)
-    *   Output: `{ "url": "...", "meta": {...} }`
+*   `POST /stream`: 流式分析视频 ✅
+    *   Input: `{ "video_url": "...", "model_id": "...", "enable_thinking": false }`
+    *   Output: SSE 流式响应 `data: {"type": "content|thinking|done", "data": "..."}`
+*   `POST /upload`: 上传视频文件 (已废弃，改用 OSS 直传)
 *   `POST /estimate`: 预估视频消耗点数 (参数: duration)
-*   `POST /create`: 创建分析任务
-    *   Input: `{ "video_url": "...", "model": "...", "prompt": "..." }`
-    *   Process: 扣费 -> 启动异步任务
 *   `GET /tasks`: 获取任务列表 (历史记录)
 *   `GET /tasks/{id}`: 获取特定任务详情及结果
 
-### 3.4 System (`/api/system`)
+### 3.4 OSS (`/oss`)
+*   `GET /sts-token`: 获取 OSS STS 临时凭证 ✅
+    *   Output: `{ "accessKeyId": "...", "accessKeySecret": "...", "securityToken": "...", "bucket": "...", "region": "..." }`
+
+### 3.5 System (`/api/system`)
 *   `GET /config`: 获取公开配置 (如费率)
 *   `POST /config`: 修改系统配置 (Admin only)
 
@@ -103,12 +110,20 @@
     *   交互实现：视频上传预览，表格 Hover 视频片段预览。
     *   Mock Data：模拟 `/upload` 返回 URL，模拟 `/create` 返回分析结果脚本。
 
-### v0.2 (Backend Integration)
+### v0.2 (Backend Integration) ✅
 *   **策略**: 实现后端 API 并替换 Mock 数据。
 *   **功能**:
-    *   集成 `tmpfile.link` 实现真实上传。
-    *   集成 OpenAI SDK 实现真实视频分析。
-    *   数据库持久化。
+    *   ✅ 集成阿里云 OSS 实现文件上传（替代 tmpfile.link）
+    *   ✅ 集成智谱、阿里云、OpenAI 多模型支持
+    *   ✅ 实现流式分析接口
+    *   ✅ 统一 AI 提供者架构
+
+### v0.3 (Task Management)
+*   **目标**: 实现任务持久化和历史记录。
+*   **功能**:
+    *   数据库设计与实现（SQLite + SQLAlchemy）
+    *   任务列表和详情接口
+    *   历史记录查询
 
 ### v0.5 (User System)
 *   **目标**: 支持多用户与数据隔离。

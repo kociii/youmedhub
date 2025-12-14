@@ -28,8 +28,7 @@ class AIService:
                 name=config["name"],
                 provider=config["provider"],
                 api_key=config["api_key"],
-                base_url=config["base_url"],
-                use_official_sdk=config.get("use_official_sdk", True)
+                base_url=config["base_url"]
             )
 
             # 获取提供者实例
@@ -72,11 +71,10 @@ class AIService:
 只返回JSON数组，不要其他内容。"""
 
         logger.debug(
-            "ai_stream start model_id=%s model_name=%s provider=%s use_official_sdk=%s enable_thinking=%s",
+            "ai_stream start model_id=%s model_name=%s provider=%s enable_thinking=%s",
             model_id,
             config.get("name"),
             config.get("provider"),
-            config.get("use_official_sdk", True),
             enable_thinking,
         )
 

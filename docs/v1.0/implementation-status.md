@@ -2,7 +2,7 @@
 
 ## 当前版本：v0.2 (Backend Integration)
 
-### ✅ 已完成
+### ✅ 已完成 (v0.2)
 
 #### 1. AI 提供者架构 (AI Provider Architecture)
 - **智谱 AI (ZhipuProvider)**
@@ -42,26 +42,40 @@
 - 阿里云：修复阻塞问题，实现真正的流式传输
 - 移除冗余日志，保留错误日志
 
+#### 5. 视频分析 API
+- ✅ `/api/analysis/stream` - SSE 流式分析接口
+- ✅ `/api/analysis/upload` - 视频上传接口（已废弃，改用 OSS）
+- ✅ AI Service - 统一的 AI 服务层
+- ✅ Model Service - 模型配置管理
+
+#### 6. OSS 文件上传
+- ✅ `/oss/sts-token` - 获取阿里云 OSS STS 临时凭证
+- ✅ OSS Service - STS 凭证管理服务
+- ✅ 前端直传 OSS（替代 tmpfile.link）
+
 ### 🚧 进行中
 
-#### 1. 视频分析 API
-- [ ] `/api/analysis/stream` - 流式分析接口
-- [ ] `/api/analysis/upload` - 视频上传接口
-- [ ] `/api/analysis/tasks` - 任务列表接口
-
-#### 2. 前端集成
-- [ ] 流式输出显示
+#### 1. 前端集成
+- ✅ 流式输出显示（SSE）
+- ✅ 视频上传组件（OSS 直传）
+- ✅ 结果表格组件
 - [ ] 思考过程展示
-- [ ] 视频上传组件
-- [ ] 结果表格组件
+- [ ] 历史记录功能
 
 ### 📋 待实现
+
+#### v0.3 - 任务管理
+- [ ] 数据库设计（SQLite + SQLAlchemy）
+- [ ] 分析任务持久化
+- [ ] `/api/analysis/tasks` - 任务列表接口
+- [ ] `/api/analysis/tasks/{id}` - 任务详情接口
+- [ ] 历史记录查询
 
 #### v0.5 - 用户系统
 - [ ] 用户注册/登录
 - [ ] JWT 认证
 - [ ] 用户信息管理
-- [ ] 历史记录功能
+- [ ] 数据隔离
 
 #### v1.0 - 权益系统
 - [ ] 点数系统
@@ -114,19 +128,51 @@ frontend/
 └── package.json
 ```
 
+## API 接口
+
+### 已实现
+- `POST /api/analysis/stream` - 流式分析视频
+  - 参数：`video_url`, `model_id`, `enable_thinking`
+  - 返回：SSE 流式响应
+  - 格式：`data: {"type": "content|thinking|done", "data": "..."}`
+
+- `POST /api/analysis/upload` - 上传视频（已废弃）
+  - 改用前端直传 OSS
+
+- `GET /oss/sts-token` - 获取 OSS STS 临时凭证
+  - 返回：`accessKeyId`, `accessKeySecret`, `securityToken`, `bucket`, `region`
+
+### 待实现
+- `GET /api/analysis/tasks` - 获取任务列表
+- `GET /api/analysis/tasks/{id}` - 获取任务详情
+- `POST /api/analysis/estimate` - 预估消耗点数
+
+## 文件上传方案
+
+### 当前方案：阿里云 OSS 直传
+1. 前端请求 `/oss/sts-token` 获取临时凭证
+2. 前端使用 STS 凭证直传文件到 OSS
+3. 前端获得文件 URL 后调用 `/api/analysis/stream`
+
+### 优势
+- 减轻后端压力
+- 上传速度更快
+- 文件存储更可靠
+- 支持更大文件（不受 tmpfile.link 100MB 限制）
+
 ## 下一步计划
 
-1. **实现视频分析 API**
-   - 创建流式分析端点
-   - 集成 AI 提供者
-   - 处理视频上传
+1. **任务管理系统** (v0.3)
+   - 设计数据库表结构
+   - 实现任务持久化
+   - 添加历史记录查询
 
-2. **前端流式输出集成**
-   - 实现 SSE/WebSocket 客户端
-   - 显示实时分析结果
-   - 展示思考过程
+2. **前端优化**
+   - 思考过程展示
+   - 历史记录界面
+   - 错误处理优化
 
-3. **数据库设计与实现**
-   - 创建数据库模型
-   - 实现数据持久化
-   - 添加历史记录功能
+3. **用户系统** (v0.5)
+   - 用户注册/登录
+   - 数据隔离
+   - 权限管理
