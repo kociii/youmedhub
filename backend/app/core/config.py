@@ -6,6 +6,9 @@ import os
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:Mfkz941027@localhost:5432/youmedhub"
     DEFAULT_MODEL: str = "qwen3-vl-flash"
+    SECRET_KEY: str = "your-secret-key-change-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     class Config:
         env_file = ".env"

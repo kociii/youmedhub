@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import analysis, system, oss, test_providers
+from app.api import analysis, system, oss, test_providers, auth
 from app.database import create_tables
 import logging
 from logging.handlers import RotatingFileHandler
@@ -68,6 +68,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(analysis.router)
 app.include_router(system.router)
 app.include_router(oss.router)
