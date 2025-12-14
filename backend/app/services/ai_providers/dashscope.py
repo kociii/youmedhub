@@ -4,11 +4,20 @@ import time
 from typing import Dict, Any, AsyncGenerator
 from http import HTTPStatus
 from .base import AIProviderBase, AIProviderConfig
-import dashscope
-from dashscope import MultiModalConversation
 from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
+
+# 尝试导入 dashscope
+try:
+    import dashscope
+    from dashscope import MultiModalConversation
+    DASHSCOPE_AVAILABLE = True
+except ImportError:
+    logger.warning("DashScope SDK 未安装，阿里云官方 SDK 实现将不可用")
+    DASHSCOPE_AVAILABLE = False
+    dashscope = None
+    MultiModalConversation = None
 
 class DashscopeProvider(AIProviderBase):
     """阿里云 DashScope 提供者（使用官方 SDK）"""
@@ -19,6 +28,8 @@ class DashscopeProvider(AIProviderBase):
 
     async def initialize(self):
         """初始化 DashScope 配置"""
+        if not DASHSCOPE_AVAILABLE:
+            raise ImportError("DashScope SDK 未安装，请运行: uv pip install dashscope")
         dashscope.api_key = self.config.api_key
 
     async def analyze_video_stream(
@@ -192,9 +203,15 @@ class DashscopeOpenAIProvider(AIProviderBase):
         messages = self.build_messages(video_url, prompt, "openai")
 
         # 处理额外参数
-        extra_body = {}
-        if enable_thinking and thinking_params:
-            extra_body = thinking_params
+        # 阿里云 DashScope 的思考模式参数
+        if enable_thinking:
+            extra_body = {
+                "enable_thinking": True  # 启用深度思考
+            }
+        else:
+            extra_body = {
+                "enable_thinking": False  # 禁用深度思考
+            }
 
         try:
             stream = await self._client.chat.completions.create(
@@ -239,6 +256,7 @@ class DashscopeOpenAIProvider(AIProviderBase):
             "base_url": self.config.base_url,
             "use_official_sdk": False,  # 使用 OpenAI 兼容格式
             "supports_thinking": True,  # OpenAI 兼容格式支持思考模式
+            "thinking_param": "enable_thinking: boolean",  # 参数格式说明
             "supports_video": True,
             "streaming": True,
         }

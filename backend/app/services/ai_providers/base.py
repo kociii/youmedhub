@@ -4,6 +4,8 @@ from pydantic import BaseModel
 
 class AIProviderConfig(BaseModel):
     """AI 提供者配置"""
+    model_config = {"protected_namespaces": ()}
+
     model_id: str
     name: str
     provider: str

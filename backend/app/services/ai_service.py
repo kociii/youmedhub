@@ -71,21 +71,13 @@ class AIService:
 ]
 只返回JSON数组，不要其他内容。"""
 
-        # 处理思考模式参数
-        thinking_params = None
-        if enable_thinking and config.get("thinking_params"):
-            try:
-                thinking_params = json.loads(config["thinking_params"])
-            except:
-                logger.warning(f"无效的思考参数: {config['thinking_params']}")
-                thinking_params = None
-
         logger.debug(
-            "ai_stream start model_id=%s model_name=%s provider=%s use_official_sdk=%s",
+            "ai_stream start model_id=%s model_name=%s provider=%s use_official_sdk=%s enable_thinking=%s",
             model_id,
             config.get("name"),
             config.get("provider"),
             config.get("use_official_sdk", True),
+            enable_thinking,
         )
 
         # 获取提供者实例
@@ -97,7 +89,7 @@ class AIService:
                 video_url=video_url,
                 prompt=prompt,
                 enable_thinking=enable_thinking,
-                thinking_params=thinking_params
+                thinking_params=None  # 智谱不需要额外的思考参数
             ):
                 yield chunk
         except Exception as e:

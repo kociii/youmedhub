@@ -119,10 +119,12 @@ POST /api/analysis/stream
 # 官方 SDK 配置
 base_url = ""  # 可选，官方 SDK 不需要
 use_official_sdk = True
+# 思考模式参数: {"type": "enabled"} 或 {"type": "disabled"}
 
 # OpenAI 兼容配置
 base_url = "https://open.bigmodel.cn/api/paas/v4"
 use_official_sdk = False
+# 思考模式参数: extra_body={"thinking": {"type": "enabled"}}
 ```
 
 ### 2. 阿里云 Qwen
@@ -134,10 +136,12 @@ use_official_sdk = False
 # 官方 SDK 配置
 base_url = ""  # 可选，官方 SDK 不需要
 use_official_sdk = True
+# 不支持思考模式
 
 # OpenAI 兼容配置
 base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 use_official_sdk = False
+# 思考模式参数: extra_body={"enable_thinking": True}
 ```
 
 ## 扩展新的提供商

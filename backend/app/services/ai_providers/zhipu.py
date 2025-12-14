@@ -35,10 +35,10 @@ class ZhipuProvider(AIProviderBase):
         # 构建消息（GLM 格式）
         messages = self.build_messages(video_url, prompt, "glm")
 
-        # 处理思考模式参数
+        # 智谱的思考模式参数
         thinking = None
-        if enable_thinking and thinking_params:
-            thinking = thinking_params
+        if enable_thinking:
+            thinking = {"type": "enabled"}  # 启用深度思考模式
 
         try:
             # 调用智谱 API
@@ -83,6 +83,7 @@ class ZhipuProvider(AIProviderBase):
             "model": self.config.name,
             "use_official_sdk": True,
             "supports_thinking": True,
+            "thinking_param": "thinking: {type: 'enabled'|'disabled'}",  # 参数格式说明
             "supports_video": True,
             "streaming": True,
         }
@@ -121,8 +122,13 @@ class ZhipuOpenAIProvider(AIProviderBase):
 
         # 处理额外参数
         extra_body = {}
-        if enable_thinking and thinking_params:
-            extra_body = thinking_params
+        if enable_thinking:
+            # 智谱 OpenAI 兼容模式的思考参数
+            extra_body = {
+                "thinking": {
+                    "type": "enabled"  # 启用深度思考模式
+                }
+            }
 
         try:
             stream = await self._client.chat.completions.create(
@@ -167,6 +173,7 @@ class ZhipuOpenAIProvider(AIProviderBase):
             "base_url": self.config.base_url,
             "use_official_sdk": False,  # 使用 OpenAI 兼容格式
             "supports_thinking": True,
+            "thinking_param": "thinking: {type: 'enabled'|'disabled'}",  # 参数格式说明
             "supports_video": True,
             "streaming": True,
         }
