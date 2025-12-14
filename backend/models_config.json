@@ -4,15 +4,13 @@
     "provider": "智谱",
     "api_key": "5af04f2db8324883994e49e29697981c.tbtrKoVUOeFwdti6",
     "base_url": "https://open.bigmodel.cn/api/paas/v4/",
-    "prompt": "分析视频，拆分视频成合适的片段，以表格化的方式返回结果镜头拆分结果，要包括：序号、景别、拍摄方案、开始时间、结束时间、口播文案、视频内容",
-    "thinking_params": "{\"thinking\": {\"type\": \"enabled\"}}"
+    "prompt": "分析视频，拆分视频成合适的片段，以表格化的方式返回结果镜头拆分结果，要包括：序号、景别、拍摄方案、开始时间、结束时间、口播文案、视频内容"
   },
   "qwen3-vl-flash": {
     "name": "qwen3-vl-flash",
     "provider": "aliyun",
     "api_key": "sk-ed1cf899f8e949a78e0b4195d9f402ba",
     "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "prompt": "分析视频，拆分视频成合适的片段，以表格化的方式返回结果镜头拆分结果，要包括：序号、景别、拍摄方案、开始时间、结束时间、口播文案、视频内容",
-    "thinking_params": "{\"enable_thinking\": true}"
+    "prompt": "分析视频，拆分视频成合适的片段，以表格化的方式返回结果镜头拆分结果，要包括：序号、景别、拍摄方案、开始时间、结束时间、口播文案、视频内容"
   }
 }

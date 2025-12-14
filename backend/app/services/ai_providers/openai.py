@@ -83,8 +83,7 @@ class OpenAIProvider(AIProviderBase):
             "provider": self.provider_name,
             "model": self.config.name,
             "base_url": self.config.base_url,
-            "use_official_sdk": False,  # 使用 OpenAI 兼容格式
-            "supports_thinking": True,
+            "supports_thinking": False,
             "supports_video": True,
             "streaming": True,
         }

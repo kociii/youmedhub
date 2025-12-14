@@ -4,9 +4,9 @@ import time
 from typing import Dict, Any, AsyncGenerator
 from .base import AIProviderBase, AIProviderConfig
 from zai import ZhipuAiClient
-from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class ZhipuProvider(AIProviderBase):
     """智谱 AI 提供者（使用官方 SDK）"""
@@ -35,8 +35,8 @@ class ZhipuProvider(AIProviderBase):
         # 构建消息（GLM 格式）
         messages = self.build_messages(video_url, prompt, "glm")
 
-        # 智谱的思考模式参数
-        thinking = None
+        # 智谱的思考模式参数（默认禁用）
+        thinking = {"type": "disabled"}  # 默认禁用思考模式
         if enable_thinking:
             thinking = {"type": "enabled"}  # 启用深度思考模式
 
@@ -46,7 +46,8 @@ class ZhipuProvider(AIProviderBase):
                 model=self.config.name,
                 messages=messages,
                 thinking=thinking,
-                stream=True
+                stream=True,
+                max_tokens=8192  # 设置最大输出 token 数
             )
         except Exception as e:
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
@@ -57,109 +58,85 @@ class ZhipuProvider(AIProviderBase):
             raise
 
         # 处理流式响应
-        full_content = ""
+        # 使用线程来处理同步流，实现真正的异步输出
         try:
-            for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta:
-                    delta_content = chunk.choices[0].delta.content
-                    if delta_content:
-                        full_content += delta_content
-                        yield {"type": "content", "data": delta_content}
+            import asyncio
+            import threading
+            from concurrent.futures import ThreadPoolExecutor
+            loop = asyncio.get_event_loop()
+            executor = ThreadPoolExecutor(max_workers=1)
 
-            yield {"type": "done", "data": full_content}
-            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-            logger.info(
-                f"[智谱] 视频分析完成 model={self.config.name} "
-                f"耗时={elapsed_ms}ms 长度={len(full_content)}"
-            )
-        except Exception as e:
-            logger.error(f"智谱流式处理错误: {str(e)}")
-            raise
+            # 创建一个asyncio队列用于在线程和主线程间传递数据
+            queue = asyncio.Queue()
 
-    def get_provider_info(self) -> Dict[str, Any]:
-        """获取提供者信息"""
-        return {
-            "provider": self.provider_name,
-            "model": self.config.name,
-            "use_official_sdk": True,
-            "supports_thinking": True,
-            "thinking_param": "thinking: {type: 'enabled'|'disabled'} (独立参数)",  # 参数格式说明
-            "supports_video": True,
-            "streaming": True,
-        }
+            def process_sync_stream():
+                """在单独线程中处理同步流"""
+                try:
+                    for chunk in stream:
+                        if not chunk.choices:
+                            continue
 
-class ZhipuOpenAIProvider(AIProviderBase):
-    """智谱 AI 提供者（使用 OpenAI 兼容格式）"""
+                        delta = chunk.choices[0].delta
+                        if not delta:
+                            continue
 
-    @property
-    def provider_name(self) -> str:
-        return "智谱 (OpenAI Compatible)"
+                        # 处理思考内容
+                        if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
+                            asyncio.run_coroutine_threadsafe(queue.put(('thinking', delta.reasoning_content)), loop)
 
-    async def initialize(self):
-        """初始化 OpenAI 客户端"""
-        # 智谱的 OpenAI 兼容端点
-        base_url = self.config.base_url or "https://open.bigmodel.cn/api/paas/v4"
-        self._client = AsyncOpenAI(
-            api_key=self.config.api_key,
-            base_url=base_url
-        )
+                        # 处理增量内容
+                        if hasattr(delta, 'content') and delta.content:
+                            asyncio.run_coroutine_threadsafe(queue.put(('content', delta.content)), loop)
 
-    async def analyze_video_stream(
-        self,
-        video_url: str,
-        prompt: str,
-        enable_thinking: bool = False,
-        thinking_params: Dict[str, Any] = None
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        """流式分析视频"""
-        if not self._client:
-            await self.initialize()
+                        # 检查是否完成
+                        if hasattr(chunk.choices[0], 'finish_reason') and chunk.choices[0].finish_reason:
+                            break
 
-        start_time = time.perf_counter()
+                except Exception as e:
+                    logger.error(f"[智谱] 同步流处理错误: {str(e)}")
+                    asyncio.run_coroutine_threadsafe(queue.put(('error', e)), loop)
+                finally:
+                    asyncio.run_coroutine_threadsafe(queue.put(('done', None)), loop)
 
-        # 构建消息（OpenAI 格式）
-        messages = self.build_messages(video_url, prompt, "openai")
+            # 在线程池中启动处理（不等待完成）
+            future = executor.submit(process_sync_stream)
 
-        # 智谱的思考模式参数是独立的
-        thinking = None
-        if enable_thinking:
-            thinking = {
-                "type": "enabled"  # 启用深度思考模式
-            }
+            # 从队列中读取并yield每个内容块
+            full_content = ""
+            try:
+                while True:
+                    try:
+                        # 短超时，以便快速响应
+                        msg_type, data = await asyncio.wait_for(queue.get(), timeout=0.1)
 
-        try:
-            stream = await self._client.chat.completions.create(
-                model=self.config.name,
-                messages=messages,
-                stream=True,
-                thinking=thinking  # 独立的参数
-            )
+                        if msg_type == 'thinking':
+                            yield {"type": "thinking", "data": data}
+                        elif msg_type == 'content':
+                            full_content += data
+                            yield {"type": "content", "data": data}
+                        elif msg_type == 'error':
+                            raise data
+                        elif msg_type == 'done':
+                            yield {"type": "done", "data": full_content}
+                            break
+
+                    except asyncio.TimeoutError:
+                        # 检查线程是否还在运行
+                        if future.done():
+                            # 线程已完成，但队列中可能还有数据
+                            continue
+                        # 线程还在运行，继续等待
+            finally:
+                # 清理线程池
+                executor.shutdown(wait=False)
+
+
         except Exception as e:
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
             logger.error(
-                f"[智谱 OpenAI] API 调用失败 model={self.config.name} "
-                f"base_url={self.config.base_url} "
-                f"elapsed_ms={elapsed_ms} error={str(e)}"
+                f"[智谱] 流式处理错误 model={self.config.name} "
+                f"耗时={elapsed_ms}ms error={str(e)}"
             )
-            raise
-
-        # 处理流式响应
-        full_content = ""
-        try:
-            async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    delta = chunk.choices[0].delta.content
-                    full_content += delta
-                    yield {"type": "content", "data": delta}
-
-            yield {"type": "done", "data": full_content}
-            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-            logger.info(
-                f"[智谱 OpenAI] 视频分析完成 model={self.config.name} "
-                f"耗时={elapsed_ms}ms 长度={len(full_content)}"
-            )
-        except Exception as e:
-            logger.error(f"[智谱 OpenAI] 流式处理错误: {str(e)}")
             raise
 
     def get_provider_info(self) -> Dict[str, Any]:
@@ -167,10 +144,8 @@ class ZhipuOpenAIProvider(AIProviderBase):
         return {
             "provider": self.provider_name,
             "model": self.config.name,
-            "base_url": self.config.base_url,
-            "use_official_sdk": False,  # 使用 OpenAI 兼容格式
             "supports_thinking": True,
-            "thinking_param": "thinking: {type: 'enabled'|'disabled'} (独立参数)",  # 参数格式说明
             "supports_video": True,
             "streaming": True,
         }
+

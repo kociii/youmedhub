@@ -11,7 +11,6 @@ class AIProviderConfig(BaseModel):
     provider: str
     api_key: str
     base_url: str
-    use_official_sdk: bool = True
 
 class AIProviderBase(ABC):
     """AI 提供者基类"""
@@ -96,7 +95,7 @@ class AIProviderBase(ABC):
                 {
                     "role": "user",
                     "content": [
-                        {"image": video_url},
+                        {"video": video_url, "fps": 4},  # DashScope 使用 video 字段，fps 控制抽帧频率，默认为4
                         {"text": prompt}
                     ]
                 }
