@@ -83,7 +83,7 @@ class ZhipuProvider(AIProviderBase):
             "model": self.config.name,
             "use_official_sdk": True,
             "supports_thinking": True,
-            "thinking_param": "thinking: {type: 'enabled'|'disabled'}",  # 参数格式说明
+            "thinking_param": "thinking: {type: 'enabled'|'disabled'} (独立参数)",  # 参数格式说明
             "supports_video": True,
             "streaming": True,
         }
@@ -120,14 +120,11 @@ class ZhipuOpenAIProvider(AIProviderBase):
         # 构建消息（OpenAI 格式）
         messages = self.build_messages(video_url, prompt, "openai")
 
-        # 处理额外参数
-        extra_body = {}
+        # 智谱的思考模式参数是独立的
+        thinking = None
         if enable_thinking:
-            # 智谱 OpenAI 兼容模式的思考参数
-            extra_body = {
-                "thinking": {
-                    "type": "enabled"  # 启用深度思考模式
-                }
+            thinking = {
+                "type": "enabled"  # 启用深度思考模式
             }
 
         try:
@@ -135,7 +132,7 @@ class ZhipuOpenAIProvider(AIProviderBase):
                 model=self.config.name,
                 messages=messages,
                 stream=True,
-                extra_body=extra_body
+                thinking=thinking  # 独立的参数
             )
         except Exception as e:
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
@@ -173,7 +170,7 @@ class ZhipuOpenAIProvider(AIProviderBase):
             "base_url": self.config.base_url,
             "use_official_sdk": False,  # 使用 OpenAI 兼容格式
             "supports_thinking": True,
-            "thinking_param": "thinking: {type: 'enabled'|'disabled'}",  # 参数格式说明
+            "thinking_param": "thinking: {type: 'enabled'|'disabled'} (独立参数)",  # 参数格式说明
             "supports_video": True,
             "streaming": True,
         }

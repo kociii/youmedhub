@@ -29,19 +29,17 @@ stream = self._client.chat.completions.create(
 
 #### OpenAI 兼容格式实现
 ```python
-extra_body = {}
+thinking = None
 if enable_thinking:
-    extra_body = {
-        "thinking": {
-            "type": "enabled"
-        }
+    thinking = {
+        "type": "enabled"  # 启用深度思考模式
     }
 
 stream = await self._client.chat.completions.create(
     model=self.config.name,
     messages=messages,
     stream=True,
-    extra_body=extra_body
+    thinking=thinking  # 独立的参数
 )
 ```
 
@@ -74,6 +72,7 @@ stream = await self._client.chat.completions.create(
 | 支持思考模式 | ✅ | ✅ | ❌ | ✅ |
 | 参数格式 | `thinking: {type}` | `thinking: {type}` | - | `enable_thinking: boolean` |
 | 默认值 | `enabled` | `enabled` | - | `False` |
+| 参数位置 | 独立参数 | 独立参数 | - | 独立参数 |
 
 ## 前端配置简化
 

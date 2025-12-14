@@ -124,7 +124,7 @@ use_official_sdk = True
 # OpenAI 兼容配置
 base_url = "https://open.bigmodel.cn/api/paas/v4"
 use_official_sdk = False
-# 思考模式参数: extra_body={"thinking": {"type": "enabled"}}
+# 思考模式参数: thinking={"type": "enabled"} (独立参数)
 ```
 
 ### 2. 阿里云 Qwen
