@@ -1,6 +1,5 @@
-from openai import AsyncOpenAI
-from zai import ZhipuAiClient
 from app.services.model_service import ModelService
+from app.services.ai_providers import get_provider, AIProviderConfig
 from typing import List, Dict, AsyncGenerator
 import json
 import logging
@@ -10,32 +9,39 @@ logger = logging.getLogger(__name__)
 
 class AIService:
     def __init__(self):
-        self.openai_clients = {}
-        self.glm_clients = {}
+        self.providers = {}  # 缓存已初始化的提供者实例
 
-    def get_client_and_config(self, model_id: str):
-        config = ModelService.get_model_config(model_id)
-        if not config:
-            raise ValueError(f"模型 {model_id} 不存在或未激活")
+    async def get_provider(self, model_id: str):
+        """获取 AI 提供者实例"""
+        if model_id not in self.providers:
+            # 获取模型配置
+            config = ModelService.get_model_config(model_id)
+            if not config:
+                raise ValueError(f"模型 {model_id} 不存在或未激活")
 
-        if not config.get("api_key"):
-            raise ValueError(f"模型 {model_id} 未配置 API Key")
+            if not config.get("api_key"):
+                raise ValueError(f"模型 {model_id} 未配置 API Key")
 
-        provider = config.get("provider", "").lower()
+            # 创建提供者配置
+            provider_config = AIProviderConfig(
+                model_id=model_id,
+                name=config["name"],
+                provider=config["provider"],
+                api_key=config["api_key"],
+                base_url=config["base_url"],
+                use_official_sdk=config.get("use_official_sdk", True)
+            )
 
-        # 智谱使用官方 SDK
-        if provider == "智谱":
-            if model_id not in self.glm_clients:
-                self.glm_clients[model_id] = ZhipuAiClient(api_key=config["api_key"])
-            return self.glm_clients[model_id], config
-        # 其他使用 OpenAI SDK
-        else:
-            if model_id not in self.openai_clients:
-                self.openai_clients[model_id] = AsyncOpenAI(
-                    api_key=config["api_key"],
-                    base_url=config["base_url"]
-                )
-            return self.openai_clients[model_id], config
+            # 获取提供者实例
+            provider = get_provider(config["provider"], provider_config)
+
+            # 初始化提供者
+            await provider.initialize()
+
+            # 缓存提供者
+            self.providers[model_id] = provider
+
+        return self.providers[model_id]
 
     async def analyze_video_stream(
         self,
@@ -44,8 +50,13 @@ class AIService:
         enable_thinking: bool = False
     ) -> AsyncGenerator[Dict, None]:
         start_time = time.perf_counter()
-        client, config = self.get_client_and_config(model_id)
 
+        # 获取模型配置
+        config = ModelService.get_model_config(model_id)
+        if not config:
+            raise ValueError(f"模型 {model_id} 不存在或未激活")
+
+        # 获取提示词
         prompt = config.get("prompt") or """分析这个视频，生成详细的分镜脚本。
 请按照以下JSON格式返回结果：
 [
@@ -60,105 +71,41 @@ class AIService:
 ]
 只返回JSON数组，不要其他内容。"""
 
-        extra_body = {}
+        # 处理思考模式参数
+        thinking_params = None
         if enable_thinking and config.get("thinking_params"):
             try:
-                extra_body = json.loads(config["thinking_params"])
+                thinking_params = json.loads(config["thinking_params"])
             except:
-                pass
+                logger.warning(f"无效的思考参数: {config['thinking_params']}")
+                thinking_params = None
 
         logger.debug(
-            "ai_stream start model_id=%s model_name=%s provider=%s",
+            "ai_stream start model_id=%s model_name=%s provider=%s use_official_sdk=%s",
             model_id,
             config.get("name"),
             config.get("provider"),
+            config.get("use_official_sdk", True),
         )
 
-        # 根据渠道构建消息内容
-        provider = config.get("provider", "").lower()
+        # 获取提供者实例
+        provider = await self.get_provider(model_id)
 
-        # 智谱 GLM 使用官方 SDK
-        if provider == "智谱":
-            content = [
-                {"type": "video_url", "video_url": {"url": video_url}},
-                {"type": "text", "text": prompt}
-            ]
-
-            thinking = None
-            if enable_thinking and config.get("thinking_params"):
-                try:
-                    thinking = json.loads(config["thinking_params"])
-                except:
-                    pass
-
-            try:
-                stream = client.chat.completions.create(
-                    model=config["name"],
-                    messages=[{"role": "user", "content": content}],
-                    thinking=thinking,
-                    stream=True
-                )
-            except Exception as e:
-                elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-                logger.exception(
-                    "ai_stream GLM create failed model_id=%s elapsed_ms=%s: %s",
-                    model_id,
-                    elapsed_ms,
-                    str(e),
-                )
-                raise
-
-            # GLM 流式处理
-            full_content = ""
-            try:
-                for chunk in stream:
-                    if chunk.choices and chunk.choices[0].delta:
-                        delta_content = chunk.choices[0].delta.content
-                        if delta_content:
-                            full_content += delta_content
-                            yield {"type": "content", "data": delta_content}
-
-                yield {"type": "done", "data": full_content}
-                elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-                print(f"\n[AI 返回完成] model={config['name']} 耗时={elapsed_ms}ms 长度={len(full_content)}")
-            except Exception as e:
-                logger.exception("ai_stream GLM error: %s", str(e))
-                raise
-            return
-
-        # 阿里云 Qwen 使用 OpenAI SDK
-        elif provider == "aliyun":
-            content = [
-                {"type": "video_url", "video_url": {"url": video_url}},
-                {"type": "text", "text": prompt}
-            ]
-        else:
-            raise ValueError(f"不支持的渠道: {provider}，目前仅支持 aliyun 和智谱")
-
+        # 调用提供者的视频分析方法
         try:
-            stream = await client.chat.completions.create(
-                model=config["name"],
-                messages=[{"role": "user", "content": content}],
-                stream=True,
-                extra_body=extra_body
-            )
+            async for chunk in provider.analyze_video_stream(
+                video_url=video_url,
+                prompt=prompt,
+                enable_thinking=enable_thinking,
+                thinking_params=thinking_params
+            ):
+                yield chunk
         except Exception as e:
-            logger.exception("ai_stream create failed: %s", str(e))
-            raise
-
-        full_content = ""
-        try:
-            async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    delta = chunk.choices[0].delta.content
-                    full_content += delta
-                    yield {"type": "content", "data": delta}
-
-            yield {"type": "done", "data": full_content}
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-            print(f"\n[AI 返回完成] model={config['name']} 耗时={elapsed_ms}ms 长度={len(full_content)}")
-        except Exception as e:
-            logger.exception("ai_stream error: %s", str(e))
+            logger.exception(
+                f"视频分析失败 model_id={model_id} provider={provider.provider_name} "
+                f"elapsed_ms={elapsed_ms} error={str(e)}"
+            )
             raise
 
 ai_service = AIService()

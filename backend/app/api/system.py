@@ -4,6 +4,9 @@ from typing import Dict, Optional, List
 from app.database import get_db
 from app.models import AIModel
 from sqlalchemy.orm import Session
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/system", tags=["系统配置"])
 
@@ -14,13 +17,33 @@ class ModelConfig(BaseModel):
     base_url: str = Field(..., description="API Base URL")
     prompt: str = Field(default="", description="提示词")
     thinking_params: str = Field(default="", description="思考模式参数（JSON格式）")
+    use_official_sdk: bool = Field(default=True, description="是否使用官方SDK（False则使用OpenAI兼容格式）")
 
 @router.get("/models", summary="获取所有模型配置")
 async def get_models(db: Session = Depends(get_db)):
     """获取所有模型配置列表"""
+    from app.services.ai_providers import get_provider, AIProviderConfig
+
     models = db.query(AIModel).all()
     result = []
     for model in models:
+        # 获取提供者信息
+        provider_info = None
+        if model.api_key and model.is_active:
+            try:
+                provider_config = AIProviderConfig(
+                    model_id=model.model_id,
+                    name=model.name,
+                    provider=model.provider,
+                    api_key=model.api_key,
+                    base_url=model.base_url,
+                    use_official_sdk=model.use_official_sdk
+                )
+                provider = get_provider(model.provider, provider_config)
+                provider_info = provider.get_provider_info()
+            except Exception as e:
+                logger.warning(f"获取提供者信息失败 {model.model_id}: {str(e)}")
+
         result.append({
             "id": model.model_id,
             "name": model.name,
@@ -29,8 +52,10 @@ async def get_models(db: Session = Depends(get_db)):
             "base_url": model.base_url,
             "prompt": model.prompt,
             "thinking_params": model.thinking_params,
+            "use_official_sdk": model.use_official_sdk,
             "has_key": bool(model.api_key),
-            "is_active": model.is_active
+            "is_active": model.is_active,
+            "provider_info": provider_info
         })
     return {"models": result}
 
@@ -65,7 +90,8 @@ async def create_model(model: ModelConfig, db: Session = Depends(get_db)):
         api_key=model.api_key,
         base_url=model.base_url,
         prompt=model.prompt,
-        thinking_params=model.thinking_params
+        thinking_params=model.thinking_params,
+        use_official_sdk=model.use_official_sdk
     )
     db.add(db_model)
     db.commit()
@@ -88,6 +114,7 @@ async def update_model(model_id: str, model: ModelConfig, db: Session = Depends(
     db_model.base_url = model.base_url
     db_model.prompt = model.prompt
     db_model.thinking_params = model.thinking_params
+    db_model.use_official_sdk = model.use_official_sdk
 
     db.commit()
     return {"message": "模型已更新"}

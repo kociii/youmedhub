@@ -21,6 +21,9 @@ class AIModel(BaseModel):
     prompt = Column(Text, default="", comment="提示词")
     thinking_params = Column(Text, default="", comment="思考模式参数（JSON格式）")
 
+    # SDK 配置
+    use_official_sdk = Column(Boolean, default=True, comment="是否使用官方SDK（False则使用OpenAI兼容格式）")
+
     # 状态
     is_active = Column(Boolean, default=True, comment="是否启用")
 

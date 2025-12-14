@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import analysis, system, oss
+from app.api import analysis, system, oss, test_providers
 from app.database import create_tables
 import logging
 from logging.handlers import RotatingFileHandler
@@ -71,6 +71,9 @@ app.add_middleware(
 app.include_router(analysis.router)
 app.include_router(system.router)
 app.include_router(oss.router)
+# 在开发环境包含测试路由
+if os.getenv("DEBUG", "false").lower() == "true":
+    app.include_router(test_providers.router)
 
 @app.get("/", tags=["Root"])
 async def root():
