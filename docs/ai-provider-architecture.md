@@ -141,7 +141,7 @@ use_official_sdk = True
 # OpenAI 兼容配置
 base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 use_official_sdk = False
-# 思考模式参数: extra_body={"enable_thinking": True}
+# 思考模式参数: enable_thinking=True (独立参数)
 ```
 
 ## 扩展新的提供商

@@ -56,21 +56,12 @@ stream = await self._client.chat.completions.create(
 ### 实现方式（仅 OpenAI 兼容）
 
 ```python
-# 处理额外参数
-if enable_thinking:
-    extra_body = {
-        "enable_thinking": True  # 启用深度思考
-    }
-else:
-    extra_body = {
-        "enable_thinking": False  # 禁用深度思考
-    }
-
+# 阿里云 DashScope 的 enable_thinking 是独立参数
 stream = await self._client.chat.completions.create(
     model=self.config.name,
     messages=messages,
     stream=True,
-    extra_body=extra_body
+    enable_thinking=enable_thinking  # 独立的布尔值参数
 )
 ```
 

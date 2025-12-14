@@ -202,23 +202,13 @@ class DashscopeOpenAIProvider(AIProviderBase):
         # 构建消息（OpenAI 格式）
         messages = self.build_messages(video_url, prompt, "openai")
 
-        # 处理额外参数
-        # 阿里云 DashScope 的思考模式参数
-        if enable_thinking:
-            extra_body = {
-                "enable_thinking": True  # 启用深度思考
-            }
-        else:
-            extra_body = {
-                "enable_thinking": False  # 禁用深度思考
-            }
-
+        # 阿里云 DashScope 的思考模式参数是独立的
         try:
             stream = await self._client.chat.completions.create(
                 model=self.config.name,
                 messages=messages,
                 stream=True,
-                extra_body=extra_body
+                enable_thinking=enable_thinking  # 独立的参数
             )
         except Exception as e:
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
@@ -256,7 +246,7 @@ class DashscopeOpenAIProvider(AIProviderBase):
             "base_url": self.config.base_url,
             "use_official_sdk": False,  # 使用 OpenAI 兼容格式
             "supports_thinking": True,  # OpenAI 兼容格式支持思考模式
-            "thinking_param": "enable_thinking: boolean",  # 参数格式说明
+            "thinking_param": "enable_thinking: boolean (独立参数)",  # 参数格式说明
             "supports_video": True,
             "streaming": True,
         }
