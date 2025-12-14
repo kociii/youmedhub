@@ -86,6 +86,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useUserStore } from '@/stores/user'
+import { messageManager } from '@/utils/message'
 
 const props = defineProps<{
   isOpen: boolean
@@ -112,19 +113,20 @@ const registerForm = reactive({
 const handleLogin = async () => {
   try {
     await userStore.login(loginForm.username, loginForm.password)
+    messageManager.success('登录成功')
     close()
   } catch (error) {
-    alert('登录失败')
+    messageManager.error('登录失败', '请检查用户名和密码')
   }
 }
 
 const handleRegister = async () => {
   try {
     await userStore.register(registerForm.username, registerForm.email, registerForm.password)
-    alert('注册成功')
+    messageManager.success('注册成功', '请登录使用')
     mode.value = 'login'
   } catch (error) {
-    alert('注册失败')
+    messageManager.error('注册失败', '请检查输入信息')
   }
 }
 

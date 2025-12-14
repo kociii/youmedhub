@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { User, ChevronDown } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
+import { messageManager } from '@/utils/message'
 import AuthDialog from '@/components/features/AuthDialog.vue'
 
 const userStore = useUserStore()
@@ -15,6 +16,7 @@ const handleUserClick = () => {
 
 const handleLogout = () => {
   userStore.logout()
+  messageManager.info('已退出登录')
 }
 </script>
 
