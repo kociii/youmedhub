@@ -1,3 +1,5 @@
+import { ref } from 'vue'
+
 export interface MessageItem {
   id: string
   type: 'success' | 'error' | 'warning' | 'info'
