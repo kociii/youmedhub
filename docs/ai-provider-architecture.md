@@ -129,14 +129,14 @@ use_official_sdk = False
 
 ### 2. 阿里云 Qwen
 
-- **官方 SDK**: 使用 `image` 字段传视频，不支持 `thinking`
+- **官方 SDK**: 使用 `image` 字段传视频，部分模型支持 `thinking`
 - **OpenAI 兼容**: 使用 `video_url` 字段，支持 `thinking`
 
 ```python
 # 官方 SDK 配置
 base_url = ""  # 可选，官方 SDK 不需要
 use_official_sdk = True
-# 不支持思考模式
+# 思考模式参数: enable_thinking=True (部分模型支持，如 qwen-plus)
 
 # OpenAI 兼容配置
 base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"

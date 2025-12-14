@@ -63,9 +63,8 @@ class DashscopeProvider(AIProviderBase):
             }
         ]
 
-        # DashScope 不支持思考模式，忽略相关参数
-        if enable_thinking:
-            logger.info("[DashScope] 暂不支持思考模式，将以普通模式运行")
+        # DashScope 思考模式参数
+        # 直接根据 enable_thinking 传递，由模型自己判断是否支持
 
         try:
             # DashScope 调用是同步的，需要在线程池中执行
@@ -78,7 +77,8 @@ class DashscopeProvider(AIProviderBase):
                 lambda: MultiModalConversation.call(
                     model=self.config.name,  # 如 qwen-vl-plus, qwen-vl-max
                     messages=messages,
-                    stream=True
+                    stream=True,
+                    enable_thinking=enable_thinking  # DashScope 思考模式参数
                 )
             )
 
@@ -165,9 +165,10 @@ class DashscopeProvider(AIProviderBase):
             "provider": self.provider_name,
             "model": self.config.name,
             "use_official_sdk": True,
-            "supports_thinking": False,  # DashScope 不支持思考模式
+            "supports_thinking": True,  # DashScope 官方 SDK 支持思考模式
+            "thinking_param": "enable_thinking: boolean",  # 参数格式说明
             "supports_video": True,
-            "streaming": True,  # SDK 支持但可能有限制
+            "streaming": True,
         }
 
 class DashscopeOpenAIProvider(AIProviderBase):

@@ -48,10 +48,23 @@ stream = await self._client.chat.completions.create(
 ## 阿里云 DashScope (Qwen-VL)
 
 ### 思考模式参数
-- 只在 OpenAI 兼容格式下支持
+- 支持所有格式
 - 使用布尔值：`enable_thinking: True` 或 `False`
 
-### 实现方式（仅 OpenAI 兼容）
+### 实现方式
+
+#### 官方 SDK 实现
+```python
+# DashScope 官方 SDK
+response = MultiModalConversation.call(
+    model=self.config.name,
+    messages=messages,
+    stream=True,
+    enable_thinking=enable_thinking  # 独立的布尔值参数
+)
+```
+
+#### OpenAI 兼容实现
 
 ```python
 # 阿里云 DashScope 的 enable_thinking 是独立参数
@@ -69,10 +82,10 @@ stream = await self._client.chat.completions.create(
 
 | 特性 | 智谱官方 SDK | 智谱 OpenAI 兼容 | 阿里云官方 SDK | 阿里云 OpenAI 兼容 |
 |------|-------------|-----------------|--------------|------------------|
-| 支持思考模式 | ✅ | ✅ | ❌ | ✅ |
-| 参数格式 | `thinking: {type}` | `thinking: {type}` | - | `enable_thinking: boolean` |
-| 默认值 | `enabled` | `enabled` | - | `False` |
-| 参数位置 | 独立参数 | 独立参数 | - | 独立参数 |
+| 支持思考模式 | ✅ | ✅ | ✅ | ✅ |
+| 参数格式 | `thinking: {type}` | `thinking: {type}` | `enable_thinking: boolean` | `enable_thinking: boolean` |
+| 默认值 | `enabled` | `enabled` | `False` | `False` |
+| 参数位置 | 独立参数 | 独立参数 | 独立参数 | 独立参数 |
 
 ## 前端配置简化
 
