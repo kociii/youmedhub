@@ -1,10 +1,11 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
+from pydantic import Field
 
 class RegisterRequest(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
+    username: str = Field(min_length=3, max_length=50)
+    email: str = Field(pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    password: str = Field(min_length=6)
 
 class LoginRequest(BaseModel):
     username: str
