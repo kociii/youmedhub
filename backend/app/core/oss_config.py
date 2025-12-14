@@ -11,6 +11,7 @@ class OSSSettings(BaseSettings):
     class Config:
         env_file = ".env"
         env_prefix = "OSS_"
+        extra = "ignore"
 
 
 oss_settings = OSSSettings()

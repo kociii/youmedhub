@@ -56,6 +56,11 @@ async def stream_analysis(request: StreamAnalysisRequest):
     async def generate():
         request_id = str(uuid.uuid4())
         start_time = time.perf_counter()
+        print(f"\n{'='*60}")
+        print(f"[分析请求] model_id: {request.model_id}")
+        print(f"[分析请求] video_url: {request.video_url}")
+        print(f"[分析请求] enable_thinking: {request.enable_thinking}")
+        print(f"{'='*60}\n")
         logger.info(
             "stream_analysis start request_id=%s model_id=%s enable_thinking=%s video_url=%s",
             request_id,

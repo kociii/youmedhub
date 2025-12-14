@@ -67,15 +67,11 @@ class AIService:
             except:
                 pass
 
-        logger.info(
-            "ai_stream start model_id=%s model_name=%s provider=%s base_url=%s enable_thinking=%s extra_body_keys=%s video_url=%s",
+        logger.debug(
+            "ai_stream start model_id=%s model_name=%s provider=%s",
             model_id,
             config.get("name"),
             config.get("provider"),
-            config.get("base_url"),
-            enable_thinking,
-            list(extra_body.keys()) if isinstance(extra_body, dict) else [],
-            video_url,
         )
 
         # 根据渠道构建消息内容
@@ -96,20 +92,12 @@ class AIService:
                     pass
 
             try:
-                logger.info(
-                    "ai_stream calling GLM API model_id=%s model_name=%s stream=True thinking=%s content=%s",
-                    model_id,
-                    config["name"],
-                    thinking,
-                    content,
-                )
                 stream = client.chat.completions.create(
                     model=config["name"],
                     messages=[{"role": "user", "content": content}],
                     thinking=thinking,
                     stream=True
                 )
-                logger.info("ai_stream GLM API call created, starting to iterate stream model_id=%s", model_id)
             except Exception as e:
                 elapsed_ms = int((time.perf_counter() - start_time) * 1000)
                 logger.exception(
@@ -122,138 +110,55 @@ class AIService:
 
             # GLM 流式处理
             full_content = ""
-            chunks = 0
-            first_chunk_time = None
             try:
                 for chunk in stream:
-                    chunks += 1
-                    if chunks == 1:
-                        first_chunk_time = time.perf_counter()
-                        logger.info(
-                            "ai_stream first_chunk model_id=%s elapsed_ms=%s",
-                            model_id,
-                            int((first_chunk_time - start_time) * 1000),
-                        )
-
                     if chunk.choices and chunk.choices[0].delta:
                         delta_content = chunk.choices[0].delta.content
                         if delta_content:
                             full_content += delta_content
-                            logger.debug(
-                                "ai_stream chunk model_id=%s chunk_num=%s content_len=%s",
-                                model_id,
-                                chunks,
-                                len(delta_content),
-                            )
                             yield {"type": "content", "data": delta_content}
 
                 yield {"type": "done", "data": full_content}
                 elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-                preview = full_content[:500]
-                logger.info(
-                    "ai_stream done model_id=%s chunks=%s content_len=%s elapsed_ms=%s preview=%s",
-                    model_id,
-                    chunks,
-                    len(full_content),
-                    elapsed_ms,
-                    preview,
-                )
+                print(f"\n[AI 返回完成] model={config['name']} 耗时={elapsed_ms}ms 长度={len(full_content)}")
             except Exception as e:
-                elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-                logger.exception(
-                    "ai_stream error model_id=%s chunks=%s elapsed_ms=%s: %s",
-                    model_id,
-                    chunks,
-                    elapsed_ms,
-                    str(e),
-                )
+                logger.exception("ai_stream GLM error: %s", str(e))
                 raise
             return
 
         # 阿里云 Qwen 使用 OpenAI SDK
         elif provider == "aliyun":
             content = [
-                {"type": "video", "video": video_url},
+                {"type": "video_url", "video_url": {"url": video_url}},
                 {"type": "text", "text": prompt}
             ]
         else:
             raise ValueError(f"不支持的渠道: {provider}，目前仅支持 aliyun 和智谱")
 
         try:
-            logger.info(
-                "ai_stream calling OpenAI API model_id=%s model_name=%s stream=True extra_body=%s content=%s",
-                model_id,
-                config["name"],
-                extra_body,
-                content,
-            )
             stream = await client.chat.completions.create(
                 model=config["name"],
-                messages=[
-                    {
-                        "role": "user",
-                        "content": content
-                    }
-                ],
+                messages=[{"role": "user", "content": content}],
                 stream=True,
                 extra_body=extra_body
             )
-            logger.info("ai_stream OpenAI API call created, starting to iterate stream model_id=%s", model_id)
         except Exception as e:
-            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-            logger.exception(
-                "ai_stream create failed model_id=%s elapsed_ms=%s: %s",
-                model_id,
-                elapsed_ms,
-                str(e),
-            )
+            logger.exception("ai_stream create failed: %s", str(e))
             raise
 
         full_content = ""
-        chunks = 0
-        first_chunk_time = None
         try:
             async for chunk in stream:
-                chunks += 1
-                if chunks == 1:
-                    first_chunk_time = time.perf_counter()
-                    logger.info(
-                        "ai_stream first_chunk model_id=%s elapsed_ms=%s",
-                        model_id,
-                        int((first_chunk_time - start_time) * 1000),
-                    )
-
                 if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    full_content += content
-                    logger.debug(
-                        "ai_stream chunk model_id=%s chunk_num=%s content_len=%s",
-                        model_id,
-                        chunks,
-                        len(content),
-                    )
-                    yield {"type": "content", "data": content}
+                    delta = chunk.choices[0].delta.content
+                    full_content += delta
+                    yield {"type": "content", "data": delta}
 
             yield {"type": "done", "data": full_content}
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-            preview = full_content[:500]
-            logger.info(
-                "ai_stream done model_id=%s chunks=%s content_len=%s elapsed_ms=%s preview=%s",
-                model_id,
-                chunks,
-                len(full_content),
-                elapsed_ms,
-                preview,
-            )
+            print(f"\n[AI 返回完成] model={config['name']} 耗时={elapsed_ms}ms 长度={len(full_content)}")
         except Exception as e:
-            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-            logger.exception(
-                "ai_stream error model_id=%s chunks=%s elapsed_ms=%s: %s",
-                model_id,
-                chunks,
-                elapsed_ms,
-                str(e),
-            )
+            logger.exception("ai_stream error: %s", str(e))
             raise
 
 ai_service = AIService()

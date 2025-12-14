@@ -5,10 +5,11 @@ import os
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:Mfkz941027@localhost:5432/youmedhub"
-    DEFAULT_MODEL: str = "qwen3-vl-plus"
+    DEFAULT_MODEL: str = "qwen3-vl-flash"
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()
 
