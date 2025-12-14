@@ -14,7 +14,7 @@
 
 ### 1.2 后端 (Backend)
 *   **Framework**: FastAPI (Python 3.10+)
-*   **Database**: SQLite (轻量级，易于部署)
+*   **Database**: PostgreSQL
 *   **ORM**: SQLAlchemy (Async) + Pydantic (Schema Validation)
 *   **Authentication**: OAuth2 with Password (Bearer JWT)
 *   **AI Integration**: OpenAI SDK / LangChain (适配多模型)
@@ -118,19 +118,23 @@
     *   ✅ 实现流式分析接口
     *   ✅ 统一 AI 提供者架构
 
-### v0.3 (Task Management)
+### v0.3 (User System)
+*   **目标**: 实现用户注册/登录系统。
+*   **功能**:
+    *   数据库设计与实现（PostgreSQL + SQLAlchemy）
+    *   用户注册接口
+    *   用户登录接口（JWT 认证）
+    *   用户信息查询接口
+    *   前端注册/登录页面
+    *   路由守卫和状态管理
+
+### v0.4 (Task Management)
 *   **目标**: 实现任务持久化和历史记录。
 *   **功能**:
-    *   数据库设计与实现（SQLite + SQLAlchemy）
+    *   分析任务数据表设计
     *   任务列表和详情接口
     *   历史记录查询
-
-### v0.5 (User System)
-*   **目标**: 支持多用户与数据隔离。
-*   **功能**:
-    *   完整的注册/登录流程。
-    *   数据库持久化用户信息。
-    *   历史记录功能。
+    *   数据隔离（按用户）
 
 ### v1.0 (Credits & Commercial)
 *   **目标**: 引入权益系统，完成商业化闭环。
