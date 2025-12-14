@@ -15,8 +15,11 @@ dependencies = [
     "httpx==0.27.2",
     "python-jose[cryptography]==3.3.0",
     "passlib[bcrypt]==1.7.4",
+    "bcrypt<4.0.0",
     "python-dotenv==1.0.1",
     "asyncpg>=0.31.0",
     "psycopg2-binary>=2.9.11",
+    "alibabacloud-sts20150401>=1.1.0",
+    "alibabacloud-tea-openapi>=0.3.0",
     "dashscope>=1.17.0",
 ]
