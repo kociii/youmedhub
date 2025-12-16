@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { Button } from '@/components/ui/button'
 import { useAnalysisStore } from '@/stores/analysis'
+import { useUserStore } from '@/stores/user'
 import { storeToRefs } from 'pinia'
 import { Loader2, ChevronsUpDown } from 'lucide-vue-next'
 import userRequest from '@/utils/request'
@@ -12,6 +13,7 @@ const props = defineProps<{
 }>()
 
 const store = useAnalysisStore()
+const userStore = useUserStore()
 const { isAnalyzing, progress, videoUrl, videoFile, rawResponse, selectedModel, enableThinking } = storeToRefs(store)
 
 interface AvailableModel {
@@ -34,82 +36,144 @@ const loadAvailableModels = async () => {
   }
 }
 
+// 存储待分析的信息，用于登录后重试
+let pendingAnalysis: (() => Promise<void>) | null = null
+
+// 监听登录成功事件
+const handleLoginSuccess = () => {
+  if (pendingAnalysis) {
+    pendingAnalysis()
+    pendingAnalysis = null
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('loginSuccess', handleLoginSuccess)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('loginSuccess', handleLoginSuccess)
+})
+
 const handleAnalyze = async () => {
-  if (!videoFile.value || !selectedModel.value) return
+  // 1. 首先检查基本条件
+  if (!videoFile.value) {
+    alert('请先选择视频文件')
+    return
+  }
 
-  store.isAnalyzing = true
-  store.progress = 0
-  store.segments = []
-  store.rawResponse = ''
+  if (!selectedModel.value) {
+    alert('请先选择AI模型')
+    return
+  }
 
-  try {
-    // 1. 上传视频到 OSS
-    const uploadedVideoUrl = await uploadToOSS(videoFile.value, (percent) => {
-      store.progress = Math.min(percent * 0.3, 30) // 上传占 30% 进度
-    })
-
-    // 2. 使用上传后的 URL 进行 AI 分析
-    const response = await fetch('http://localhost:8000/api/analysis/stream', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        video_url: uploadedVideoUrl,
-        model_id: selectedModel.value,
-        enable_thinking: enableThinking.value
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error('分析请求失败')
+  // 定义实际的分析逻辑
+  const doAnalysis = async () => {
+    // 重新检查用户点数（登录状态可能已更新）
+    if (userStore.user && userStore.user.credits < 5) {
+      alert(`点数不足！当前点数：${userStore.user.credits}，需要：5点数。请充值后再使用分析功能。`)
+      return
     }
 
-    const reader = response.body?.getReader()
-    if (!reader) throw new Error('无法读取响应流')
+    store.isAnalyzing = true
+    store.progress = 0
+    store.segments = []
+    store.rawResponse = ''
 
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let fullContent = ''
+    try {
+      // 1. 上传视频到 OSS
+      const uploadedVideoUrl = await uploadToOSS(videoFile.value, (percent) => {
+        store.progress = Math.min(percent * 0.3, 30) // 上传占 30% 进度
+      })
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+      // 2. 使用上传后的 URL 进行 AI 分析
+      const response = await fetch('http://localhost:8000/api/analysis/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userStore.token}`
+        },
+        body: JSON.stringify({
+          video_url: uploadedVideoUrl,
+          model_id: selectedModel.value,
+          enable_thinking: enableThinking.value
+        })
+      })
 
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n\n')
-      buffer = lines.pop() || ''
+      if (!response.ok) {
+        throw new Error('分析请求失败')
+      }
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(line.slice(6))
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('无法读取响应流')
 
-            if (data.error) {
-              alert('分析失败: ' + data.error)
-              store.isAnalyzing = false
-              return
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let fullContent = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              if (data.error) {
+                alert('分析失败: ' + data.error)
+                store.isAnalyzing = false
+                return
+              }
+
+              if (data.type === 'content') {
+                fullContent += data.data
+                store.rawResponse = fullContent
+                store.progress = Math.min(30 + store.progress + 2, 95)
+              } else if (data.type === 'done') {
+                store.progress = 100
+                store.rawResponse = data.data
+                console.log('AI 完整返回:', data.data)
+              }
+            } catch (e) {
+              console.error('解析流数据失败', e)
             }
-
-            if (data.type === 'content') {
-              fullContent += data.data
-              store.rawResponse = fullContent
-              store.progress = Math.min(30 + store.progress + 2, 95)
-            } else if (data.type === 'done') {
-              store.progress = 100
-              store.rawResponse = data.data
-              console.log('AI 完整返回:', data.data)
-            }
-          } catch (e) {
-            console.error('解析流数据失败', e)
           }
         }
       }
+    } catch (e: any) {
+      console.error('分析失败', e)
+      alert('分析失败: ' + (e.message || '未知错误'))
+    } finally {
+      store.isAnalyzing = false
     }
-  } catch (e: any) {
-    console.error('分析失败', e)
-    alert('分析失败: ' + (e.message || '未知错误'))
-  } finally {
-    store.isAnalyzing = false
   }
+
+  // 2. 检查用户是否登录，如果没有token就弹出登录框
+  if (!userStore.token) {
+    // 存储待分析操作，触发登录弹窗
+    pendingAnalysis = doAnalysis
+    document.dispatchEvent(new CustomEvent('showLoginModal'))
+    return
+  }
+
+  // 3. 验证token有效性，如果无效就弹出登录框
+  try {
+    await userStore.fetchMe()
+  } catch (error) {
+    // token无效，清除并弹出登录框
+    userStore.logout()
+    pendingAnalysis = doAnalysis
+    document.dispatchEvent(new CustomEvent('showLoginModal'))
+    return
+  }
+
+  // 4. 执行分析
+  await doAnalysis()
 }
 
 onMounted(loadAvailableModels)

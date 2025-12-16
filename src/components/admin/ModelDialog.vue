@@ -11,6 +11,7 @@ interface AIModel {
   base_url: string
   prompt: string
   thinking_params: string
+  is_active: boolean
 }
 
 const props = defineProps<{
@@ -30,7 +31,8 @@ const form = ref<AIModel>({
   api_key: '',
   base_url: '',
   prompt: '',
-  thinking_params: ''
+  thinking_params: '',
+  is_active: true
 })
 
 const showKey = ref(false)
@@ -39,7 +41,7 @@ watch(() => props.model, (newModel) => {
   if (newModel) {
     form.value = { ...newModel }
   } else {
-    form.value = { id: '', name: '', provider: '', api_key: '', base_url: '', prompt: '', thinking_params: '' }
+    form.value = { id: '', name: '', provider: '', api_key: '', base_url: '', prompt: '', thinking_params: '', is_active: true }
   }
 }, { immediate: true })
 
@@ -102,6 +104,18 @@ const handleSave = () => {
         <div>
           <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">思考模式参数（JSON）</label>
           <textarea v-model="form.thinking_params" rows="3" placeholder='例如 Qwen: {"enable_thinking": true}' class="w-full rounded-md border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-mono focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:bg-white outline-none resize-none transition-all"></textarea>
+        </div>
+
+        <div>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              v-model="form.is_active"
+              class="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900 focus:ring-1"
+            />
+            <span class="text-sm font-medium text-gray-700">启用此模型</span>
+          </label>
+          <p class="mt-1 text-xs text-gray-500">禁用的模型不会出现在前端的模型选择列表中</p>
         </div>
       </div>
 

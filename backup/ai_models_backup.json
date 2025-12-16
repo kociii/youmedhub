@@ -1,0 +1,24 @@
+[
+  {
+    "model_id": "qwen3-vl-flash",
+    "name": "Qwen3-VL-Flash",
+    "provider": "aliyun",
+    "api_key": "sk-ed1cf899f8e949a78e0b4195d9f402ba",
+    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "prompt": "请分析这个视频，生成详细的分镜脚本，包括镜号、时间段、画面描述、台词、景别和运镜技巧。",
+    "thinking_params": "",
+    "use_official_sdk": true,
+    "is_active": true
+  },
+  {
+    "model_id": "glm-4v-plus",
+    "name": "glm-4.6v",
+    "provider": "智谱",
+    "api_key": "5af04f2db8324883994e49e29697981c.tbtrKoVUOeFwdti6",
+    "base_url": "https://open.bigmodel.cn/api/paas/v4",
+    "prompt": "请分析这个视频，生成详细的分镜脚本，包括镜号、时间段、画面描述、台词、景别和运镜技巧。",
+    "thinking_params": "",
+    "use_official_sdk": true,
+    "is_active": false
+  }
+]

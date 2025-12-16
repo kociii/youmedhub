@@ -115,6 +115,8 @@ const handleLogin = async () => {
     await userStore.login(loginForm.username, loginForm.password)
     messageManager.success('登录成功')
     close()
+    // 触发登录成功事件，让需要登录的操作继续执行
+    document.dispatchEvent(new CustomEvent('loginSuccess'))
   } catch (error) {
     messageManager.error('登录失败', '请检查用户名和密码')
   }

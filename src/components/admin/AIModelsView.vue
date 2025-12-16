@@ -14,7 +14,7 @@ interface AIModel {
   prompt: string
   thinking_params: string
   has_key: boolean
-  status: 'active' | 'inactive'
+  is_active: boolean
 }
 
 const models = ref<AIModel[]>([])
@@ -26,7 +26,8 @@ const loadConfig = async () => {
     const { data } = await adminRequest.get('/api/system/models')
     models.value = data.models.map((m: any) => ({
       ...m,
-      status: m.has_key ? 'active' : 'inactive'
+      has_key: !!m.api_key,
+      is_active: m.is_active ?? true
     }))
   } catch (e) {
     console.error('加载配置失败', e)
@@ -52,7 +53,8 @@ const handleSave = async (model: AIModel) => {
         api_key: model.api_key,
         base_url: model.base_url,
         prompt: model.prompt,
-        thinking_params: model.thinking_params
+        thinking_params: model.thinking_params,
+        is_active: model.is_active
       })
     } else {
       await adminRequest.post('/api/system/models', {
@@ -61,7 +63,8 @@ const handleSave = async (model: AIModel) => {
         api_key: model.api_key,
         base_url: model.base_url,
         prompt: model.prompt,
-        thinking_params: model.thinking_params
+        thinking_params: model.thinking_params,
+        is_active: model.is_active
       })
     }
     dialogOpen.value = false
@@ -105,7 +108,8 @@ onMounted(loadConfig)
             <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">模型名称</th>
             <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">提供商</th>
             <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Base URL</th>
-            <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+            <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">API Key</th>
+            <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">激活状态</th>
             <th class="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
           </tr>
         </thead>
@@ -126,6 +130,16 @@ onMounted(loadConfig)
               <span v-else class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
                 <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
                 未配置
+              </span>
+            </td>
+            <td class="px-6 py-4">
+              <span v-if="model.is_active" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200/50">
+                <CheckCircle class="w-3 h-3" />
+                已启用
+              </span>
+              <span v-else class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                <XCircle class="w-3 h-3" />
+                已禁用
               </span>
             </td>
             <td class="px-6 py-4 text-right">

@@ -41,7 +41,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             detail="用户名或密码错误"
         )
 
-    access_token = create_access_token(data={"sub": user.id})
+    access_token = create_access_token(data={"sub": str(user.id)})
 
     return TokenResponse(
         access_token=access_token,

@@ -4,20 +4,25 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.schemas.admin import UserListResponse, UserDetailResponse, UserUpdateRequest
-from app.deps.admin import get_current_admin
+from pydantic import BaseModel
+from app.deps.admin_auth import get_current_admin
 
 router = APIRouter(prefix="/users", tags=["管理后台 - 用户管理"], dependencies=[Depends(get_current_admin)])
 
+class CreditsAdjustRequest(BaseModel):
+    credits: int
+    reason: str
+
 @router.get("/")
 async def get_users(
-    page: int = Query(1, ge=1, alias="skip"),
-    limit: int = Query(10, ge=1, le=100, alias="limit"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
     search: str = Query(None),
     db: Session = Depends(get_db)
 ):
     """获取用户列表"""
-    # 计算偏移量
-    offset = (page - 1) * limit
+    # 使用skip作为偏移量
+    offset = skip
 
     # 构建查询
     query = db.query(User)
@@ -42,14 +47,16 @@ async def get_users(
                 "id": user.id,
                 "username": user.username,
                 "email": user.email,
-                "created_at": user.created_at
+                "credits": user.credits,
+                "is_admin": user.is_admin,
+                "created_at": user.created_at,
+                "updated_at": user.updated_at
             }
             for user in users
         ],
         "total": total,
-        "page": page,
-        "limit": limit,
-        "pages": (total + limit - 1) // limit
+        "skip": skip,
+        "limit": limit
     }
 
 @router.get("/{user_id}", response_model=UserDetailResponse)
@@ -127,3 +134,25 @@ async def update_user(
         created_at=user.created_at,
         updated_at=user.updated_at
     )
+
+@router.post("/{user_id}/adjust-credits")
+async def adjust_user_credits(
+    user_id: int,
+    request: CreditsAdjustRequest,
+    db: Session = Depends(get_db)
+):
+    """调整用户点数"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    old_credits = user.credits
+    user.credits = request.credits
+    db.commit()
+
+    return {
+        "message": "点数调整成功",
+        "old_credits": old_credits,
+        "new_credits": user.credits,
+        "reason": request.reason
+    }

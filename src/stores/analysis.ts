@@ -109,13 +109,33 @@ export const useAnalysisStore = defineStore('analysis', () => {
     rawResponse.value = ''
 
     try {
-      const response = await userRequest.post('/api/analysis/stream', {
-        video_url: videoUrl.value,
-        model_id: selectedModel.value,
-        enable_thinking: enableThinking.value
+      const token = localStorage.getItem('user_token')
+      if (!token) {
+        throw new Error('请先登录')
+      }
+
+      const response = await fetch('http://localhost:8000/api/analysis/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          video_url: videoUrl.value,
+          model_id: selectedModel.value,
+          enable_thinking: enableThinking.value
+        })
       })
 
-      const reader = response.data.getReader()
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || '分析请求失败')
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('无法读取响应流')
+      }
       const decoder = new TextDecoder()
 
       while (true) {

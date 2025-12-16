@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { User, ChevronDown } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
 import { messageManager } from '@/utils/message'
@@ -7,6 +7,19 @@ import AuthDialog from '@/components/features/AuthDialog.vue'
 
 const userStore = useUserStore()
 const showAuthDialog = ref(false)
+
+// 监听全局登录弹窗事件
+const handleShowLoginModal = () => {
+  showAuthDialog.value = true
+}
+
+onMounted(() => {
+  document.addEventListener('showLoginModal', handleShowLoginModal)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('showLoginModal', handleShowLoginModal)
+})
 
 const handleUserClick = () => {
   if (!userStore.user) {

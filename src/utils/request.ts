@@ -63,7 +63,7 @@ userRequest.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('user_token')
-      window.location.href = '/login'
+      // 不再自动跳转到登录页面，让组件自己处理
     }
     return Promise.reject(error)
   }

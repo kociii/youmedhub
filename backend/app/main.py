@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import analysis, system, oss, test_providers, auth, admin
+from app.api import analysis, system, oss, test_providers, auth, admin, admin_auth
 from app.database import create_tables
 import logging
 from logging.handlers import RotatingFileHandler
@@ -68,8 +68,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 前台用户认证
 app.include_router(auth.router)
+
+# 管理后台认证（独立系统）
+app.include_router(admin_auth.router)
+
+# 管理后台功能（需要管理员认证）
 app.include_router(admin.router)
+
+# 其他功能
 app.include_router(analysis.router)
 app.include_router(system.router)
 app.include_router(oss.router)

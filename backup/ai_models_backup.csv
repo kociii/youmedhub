@@ -1,0 +1,3 @@
+model_id,name,provider,api_key,base_url,prompt,thinking_params,use_official_sdk,is_active,id,created_at,updated_at
+qwen3-vl-flash,Qwen3-VL-Flash,aliyun,sk-ed1cf899f8e949a78e0b4195d9f402ba,https://dashscope.aliyuncs.com/compatible-mode/v1,请分析这个视频，生成详细的分镜脚本，包括镜号、时间段、画面描述、台词、景别和运镜技巧。,"",t,t,1,2025-12-16 12:58:01.055609+08,2025-12-16 12:59:19.217684+08
+glm-4v-plus,glm-4.6v,智谱,5af04f2db8324883994e49e29697981c.tbtrKoVUOeFwdti6,https://open.bigmodel.cn/api/paas/v4,请分析这个视频，生成详细的分镜脚本，包括镜号、时间段、画面描述、台词、景别和运镜技巧。,"",t,f,2,2025-12-16 12:58:01.055609+08,2025-12-16 12:59:50.701206+08

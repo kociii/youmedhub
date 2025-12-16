@@ -84,24 +84,31 @@ async def stream_analysis(
     db.commit()
     db.refresh(task)
 
+    # 保存需要的信息，避免在异步生成器中访问已关闭的会话
+    user_id = current_user.id
+    task_id = task.id
+    video_url = request.video_url
+    model_id = request.model_id
+    enable_thinking = request.enable_thinking
+
     async def generate():
         request_id = str(uuid.uuid4())
         start_time = time.perf_counter()
         print(f"\n{'='*60}")
-        print(f"[分析请求] user_id: {current_user.id}")
-        print(f"[分析请求] task_id: {task.id}")
-        print(f"[分析请求] model_id: {request.model_id}")
-        print(f"[分析请求] video_url: {request.video_url}")
-        print(f"[分析请求] enable_thinking: {request.enable_thinking}")
+        print(f"[分析请求] user_id: {user_id}")
+        print(f"[分析请求] task_id: {task_id}")
+        print(f"[分析请求] model_id: {model_id}")
+        print(f"[分析请求] video_url: {video_url}")
+        print(f"[分析请求] enable_thinking: {enable_thinking}")
         print(f"{'='*60}\n")
         logger.info(
             "stream_analysis start request_id=%s user_id=%s task_id=%s model_id=%s enable_thinking=%s video_url=%s",
             request_id,
-            current_user.id,
-            task.id,
-            request.model_id,
-            request.enable_thinking,
-            request.video_url,
+            user_id,
+            task_id,
+            model_id,
+            enable_thinking,
+            video_url,
         )
 
         # 更新任务状态为处理中
@@ -154,7 +161,9 @@ async def stream_analysis(
             task.result = {"content": "\n".join(result_data)} if result_data else None
 
             # 扣除用户点数
-            current_user.credits -= 5
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
+                user.credits -= 5
 
             db.commit()
 
@@ -162,8 +171,8 @@ async def stream_analysis(
             logger.info(
                 "stream_analysis done request_id=%s user_id=%s task_id=%s chunks=%s elapsed_ms=%s",
                 request_id,
-                current_user.id,
-                task.id,
+                user_id,
+                task_id,
                 chunks,
                 elapsed_ms,
             )
@@ -178,8 +187,8 @@ async def stream_analysis(
             logger.exception(
                 "stream_analysis error request_id=%s user_id=%s task_id=%s elapsed_ms=%s: %s",
                 request_id,
-                current_user.id,
-                task.id,
+                user_id,
+                task_id,
                 elapsed_ms,
                 str(e),
             )

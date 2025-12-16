@@ -18,6 +18,7 @@ class ModelConfig(BaseModel):
     prompt: str = Field(default="", description="提示词")
     thinking_params: str = Field(default="", description="思考模式参数（JSON格式）")
     use_official_sdk: bool = Field(default=True, description="是否使用官方SDK（False则使用OpenAI兼容格式）")
+    is_active: bool = Field(default=True, description="是否启用该模型")
 
 @router.get("/models", summary="获取所有模型配置")
 async def get_models(db: Session = Depends(get_db)):
@@ -75,7 +76,8 @@ async def get_available_models(db: Session = Depends(get_db)):
 @router.post("/models", summary="新增模型")
 async def create_model(model: ModelConfig, db: Session = Depends(get_db)):
     """新增一个新的模型配置"""
-    model_id = model.name.lower().replace(" ", "_")
+    # 使用用户配置的名称作为 model_id
+    model_id = model.name
 
     # 检查是否已存在
     existing = db.query(AIModel).filter(AIModel.model_id == model_id).first()
@@ -91,7 +93,8 @@ async def create_model(model: ModelConfig, db: Session = Depends(get_db)):
         base_url=model.base_url,
         prompt=model.prompt,
         thinking_params=model.thinking_params,
-        use_official_sdk=model.use_official_sdk
+        use_official_sdk=model.use_official_sdk,
+        is_active=model.is_active
     )
     db.add(db_model)
     db.commit()
@@ -107,6 +110,17 @@ async def update_model(model_id: str, model: ModelConfig, db: Session = Depends(
     if not db_model:
         raise HTTPException(404, "模型不存在")
 
+    # 如果名称改变了，也需要更新 model_id
+    new_model_id = model.name
+    if new_model_id != model_id:
+        # 检查新的 model_id 是否已存在
+        existing = db.query(AIModel).filter(AIModel.model_id == new_model_id).first()
+        if existing:
+            raise HTTPException(400, f"模型名称 '{new_model_id}' 已存在")
+
+        # 更新 model_id
+        db_model.model_id = new_model_id
+
     # 更新字段
     db_model.name = model.name
     db_model.provider = model.provider
@@ -115,6 +129,7 @@ async def update_model(model_id: str, model: ModelConfig, db: Session = Depends(
     db_model.prompt = model.prompt
     db_model.thinking_params = model.thinking_params
     db_model.use_official_sdk = model.use_official_sdk
+    db_model.is_active = model.is_active
 
     db.commit()
     return {"message": "模型已更新"}
