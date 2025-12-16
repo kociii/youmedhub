@@ -124,18 +124,34 @@ async def stream_analysis(
         print(f"{'='*80}\n")
 
         # 更新任务状态为处理中
+        processing_success = False
         try:
-            task.status = "processing"
-            task.started_at = datetime.utcnow()
-            db.commit()
+            # 使用新的session来避免依赖session的生命周期问题
+            from app.database import SessionLocal
+            status_db = SessionLocal()
+            try:
+                task_for_update = status_db.query(AnalysisTask).filter(AnalysisTask.id == task_id).first()
+                if task_for_update:
+                    task_for_update.status = "processing"
+                    task_for_update.started_at = datetime.utcnow()
+                    status_db.commit()
+                    processing_success = True
 
-            processing_time = datetime.utcnow().isoformat()
-            logger.info(f"[状态更新] Task {task_id} -> processing at {processing_time}")
-            print(f"[状态更新] Task {task_id} -> processing")
+                    processing_time = datetime.utcnow().isoformat()
+                    logger.info(f"[状态更新] Task {task_id} -> processing at {processing_time}")
+                    print(f"[状态更新] Task {task_id} -> processing")
+                else:
+                    logger.error(f"[状态更新失败] Task {task_id} 不存在")
+            except Exception as status_error:
+                logger.error(f"[状态更新失败] Task {task_id} to processing: {status_error}", exc_info=True)
+                status_db.rollback()
+            finally:
+                status_db.close()
+        except Exception as e:
+            logger.error(f"创建状态更新session失败: {e}", exc_info=True)
 
-        except Exception as commit_error:
-            logger.error(f"[状态更新失败] Task {task_id} to processing: {commit_error}", exc_info=True)
-            raise
+        if not processing_success:
+            raise HTTPException(status_code=500, detail="无法更新任务状态")
 
         result_data = []
         error_occurred = None
@@ -319,123 +335,127 @@ async def stream_analysis(
             except Exception as yield_error:
                 logger.error(f"[流式响应] 无法发送结束信号: {yield_error}")
 
+            # 使用新的数据库会话来更新任务状态
             try:
-                if error_occurred:
-                    # 任务失败
-                    task.status = "failed"
-                    task.error_message = str(error_occurred)
-                    task.completed_at = datetime.utcnow()
+                from app.database import SessionLocal
+                update_db = SessionLocal()
+                try:
+                    # 重新查询任务对象
+                    task_to_update = update_db.query(AnalysisTask).filter(AnalysisTask.id == task_id).first()
+                    if not task_to_update:
+                        logger.error(f"未找到任务 {task_id}")
+                        return
 
-                    completion_time = datetime.utcnow().isoformat()
-                    logger.error("="*80)
-                    logger.error(f"[任务失败] request_id={request_id}")
-                    logger.error(f"  - 任务ID: {task_id}")
-                    logger.error(f"  - 失败原因: {str(error_occurred)}")
-                    logger.error(f"  - 完成时间: {completion_time}")
-                    logger.error(f"  - 总用时: {total_time_sec:.2f}秒")
-                    logger.error(f"  - 收到chunks: {chunks}个")
-                    logger.error("="*80)
+                    if error_occurred:
+                        # 任务失败
+                        task_to_update.status = "failed"
+                        task_to_update.error_message = str(error_occurred)
+                        task_to_update.completed_at = datetime.utcnow()
 
-                    print(f"\n{'='*80}")
-                    print(f"[任务失败] Task {task_id}")
-                    print(f"  - Error: {str(error_occurred)}")
-                    print(f"  - Total time: {total_time_sec:.2f}s")
-                    print(f"  - Chunks received: {chunks}")
-                    print(f"{'='*80}\n")
-                else:
-                    # 任务完成
-                    task.status = "completed"
-                    task.completed_at = datetime.utcnow()
+                        completion_time = datetime.utcnow().isoformat()
+                        logger.error("="*80)
+                        logger.error(f"[任务失败] request_id={request_id}")
+                        logger.error(f"  - 任务ID: {task_id}")
+                        logger.error(f"  - 失败原因: {str(error_occurred)}")
+                        logger.error(f"  - 完成时间: {completion_time}")
+                        logger.error(f"  - 总用时: {total_time_sec:.2f}秒")
+                        logger.error(f"  - 收到chunks: {chunks}个")
+                        logger.error("="*80)
 
-                    # 保存结构化的结果数据
-                    result_saved = False
-                    result_type = "none"
-                    if result_data:
-                        result_type = "text"
-                        total_chars = sum(len(r) for r in result_data)
-                        # 尝试解析JSON格式的结果
-                        try:
-                            # 如果结果是JSON格式（比如AI返回的脚本和片段）
-                            first_result = result_data[0]
-                            if first_result.startswith('{') or first_result.startswith('['):
-                                # 尝试解析为JSON
-                                parsed_result = json.loads("\n".join(result_data))
-                                task.result = parsed_result
-                                result_type = "json"
-                                result_saved = True
-                            else:
-                                # 纯文本内容
-                                task.result = {
+                        print(f"\n{'='*80}")
+                        print(f"[任务失败] Task {task_id}")
+                        print(f"  - Error: {str(error_occurred)}")
+                        print(f"  - Total time: {total_time_sec:.2f}s")
+                        print(f"  - Chunks received: {chunks}")
+                        print(f"{'='*80}\n")
+                    else:
+                        # 任务完成
+                        task_to_update.status = "completed"
+                        task_to_update.completed_at = datetime.utcnow()
+
+                        # 保存结构化的结果数据
+                        result_saved = False
+                        result_type = "none"
+                        if result_data:
+                            result_type = "text"
+                            total_chars = sum(len(r) for r in result_data)
+                            # 尝试解析JSON格式的结果
+                            try:
+                                # 如果结果是JSON格式（比如AI返回的脚本和片段）
+                                first_result = result_data[0]
+                                if first_result.startswith('{') or first_result.startswith('['):
+                                    # 尝试解析为JSON
+                                    parsed_result = json.loads("\n".join(result_data))
+                                    task_to_update.result = parsed_result
+                                    result_type = "json"
+                                    result_saved = True
+                                else:
+                                    # 纯文本内容
+                                    task_to_update.result = {
+                                        "content": "\n".join(result_data),
+                                        "type": "text"
+                                    }
+                                    result_saved = True
+                            except (json.JSONDecodeError, Exception) as e:
+                                # 如果不是JSON，保存为文本
+                                task_to_update.result = {
                                     "content": "\n".join(result_data),
                                     "type": "text"
                                 }
                                 result_saved = True
-                        except (json.JSONDecodeError, Exception) as e:
-                            # 如果不是JSON，保存为文本
-                            task.result = {
-                                "content": "\n".join(result_data),
-                                "type": "text"
-                            }
-                            result_saved = True
-                    else:
-                        task.result = None
+                        else:
+                            task_to_update.result = None
 
-                    # 扣除用户点数（仅成功完成的任务）
-                    credits_before = 0
-                    credits_after = 0
-                    user = db.query(User).filter(User.id == user_id).first()
-                    if user:
-                        credits_before = user.credits
-                        user.credits -= 5
-                        credits_after = user.credits
+                        # 扣除用户点数（仅成功完成的任务）
+                        credits_before = 0
+                        credits_after = 0
+                        user = update_db.query(User).filter(User.id == user_id).first()
+                        if user:
+                            credits_before = user.credits
+                            user.credits -= 5
+                            credits_after = user.credits
 
-                    completion_time = datetime.utcnow().isoformat()
-                    logger.info("="*80)
-                    logger.info(f"[任务完成] request_id={request_id}")
-                    logger.info(f"  - 任务ID: {task_id}")
-                    logger.info(f"  - 完成时间: {completion_time}")
-                    logger.info(f"  - 总用时: {total_time_sec:.2f}秒")
-                    logger.info(f"  - 收到chunks: {chunks}个")
-                    logger.info(f"  - 结果类型: {result_type}")
-                    if result_saved:
-                        logger.info(f"  - 结果已保存: 是")
-                        if total_chars > 0:
-                            logger.info(f"  - 总字符数: {total_chars}")
-                    else:
-                        logger.info(f"  - 结果已保存: 否")
-                    logger.info(f"  - 用户点数: {credits_before} -> {credits_after}")
-                    logger.info("="*80)
+                        completion_time = datetime.utcnow().isoformat()
+                        logger.info("="*80)
+                        logger.info(f"[任务完成] request_id={request_id}")
+                        logger.info(f"  - 任务ID: {task_id}")
+                        logger.info(f"  - 完成时间: {completion_time}")
+                        logger.info(f"  - 总用时: {total_time_sec:.2f}秒")
+                        logger.info(f"  - 收到chunks: {chunks}个")
+                        logger.info(f"  - 结果类型: {result_type}")
+                        if result_saved:
+                            logger.info(f"  - 结果已保存: 是")
+                            if total_chars > 0:
+                                logger.info(f"  - 总字符数: {total_chars}")
+                        else:
+                            logger.info(f"  - 结果已保存: 否")
+                        logger.info(f"  - 用户点数: {credits_before} -> {credits_after}")
+                        logger.info("="*80)
 
-                    print(f"\n{'='*80}")
-                    print(f"[任务完成] Task {task_id}")
-                    print(f"  - Status: completed ✓")
-                    print(f"  - Total time: {total_time_sec:.2f}s")
-                    print(f"  - Chunks: {chunks}")
-                    print(f"  - Result type: {result_type}")
-                    if result_saved:
-                        print(f"  - Result saved: ✓")
-                    print(f"  - User credits: {credits_before} -> {credits_after}")
-                    print(f"{'='*80}\n")
+                        print(f"\n{'='*80}")
+                        print(f"[任务完成] Task {task_id}")
+                        print(f"  - Status: completed ✓")
+                        print(f"  - Total time: {total_time_sec:.2f}s")
+                        print(f"  - Chunks: {chunks}")
+                        print(f"  - Result type: {result_type}")
+                        if result_saved:
+                            print(f"  - Result saved: ✓")
+                        print(f"  - User credits: {credits_before} -> {credits_after}")
+                        print(f"{'='*80}\n")
 
-                db.commit()
+                    update_db.commit()
 
-                # 最终总结日志
-                final_status = task.status
-                logger.info(f"[分析请求结束] request_id={request_id} - 最终状态: {final_status}")
-                logger.info(f"{'='*80}")
-
-            except Exception as commit_error:
-                logger.error(
-                    "Failed to update task status request_id=%s task_id=%s error=%s",
-                    request_id,
-                    task_id,
-                    str(commit_error),
-                    exc_info=True
-                )
-                try:
-                    db.rollback()
-                except:
-                    pass
+                    # 最终总结日志
+                    final_status = task_to_update.status
+                    logger.info(f"[分析请求结束] request_id={request_id} - 最终状态: {final_status}")
+                    logger.info(f"{'='*80}")
+                except Exception as update_error:
+                    logger.error(f"更新任务状态失败: {update_error}")
+                    update_db.rollback()
+                finally:
+                    update_db.close()
+            except Exception as db_error:
+                logger.error(f"数据库操作失败: {db_error}")
 
     return StreamingResponse(
         generate(),
