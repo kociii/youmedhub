@@ -14,7 +14,7 @@ const props = defineProps<{
 
 const store = useAnalysisStore()
 const userStore = useUserStore()
-const { isAnalyzing, progress, videoUrl, videoFile, rawResponse, selectedModel, enableThinking } = storeToRefs(store)
+const { isAnalyzing, progress, videoUrl, videoFile, selectedModel, enableThinking } = storeToRefs(store)
 
 interface AvailableModel {
   id: string
@@ -56,6 +56,12 @@ onUnmounted(() => {
 })
 
 const handleAnalyze = async () => {
+  // 立即禁用按钮，防止重复点击
+  if (isAnalyzing.value) {
+    console.log('分析正在进行中，忽略重复点击')
+    return
+  }
+
   // 1. 首先检查基本条件
   if (!videoFile.value) {
     alert('请先选择视频文件')
@@ -67,94 +73,44 @@ const handleAnalyze = async () => {
     return
   }
 
+  // 立即设置分析状态为true，禁用按钮
+  isAnalyzing.value = true
+
   // 定义实际的分析逻辑
   const doAnalysis = async () => {
     // 重新检查用户点数（登录状态可能已更新）
     if (userStore.user && userStore.user.credits < 5) {
       alert(`点数不足！当前点数：${userStore.user.credits}，需要：5点数。请充值后再使用分析功能。`)
+      // 重置状态
+      isAnalyzing.value = false
       return
     }
-
-    store.isAnalyzing = true
-    store.progress = 0
-    store.segments = []
-    store.rawResponse = ''
 
     try {
       // 1. 上传视频到 OSS
       const uploadedVideoUrl = await uploadToOSS(videoFile.value, (percent) => {
-        store.progress = Math.min(percent * 0.3, 30) // 上传占 30% 进度
+        // 通过store更新进度（如果store有的话）
+        store.setProgress?.(Math.min(percent * 0.3, 30)) // 上传占 30% 进度
       })
 
-      // 2. 使用上传后的 URL 进行 AI 分析
-      const response = await fetch('http://localhost:8000/api/analysis/stream', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userStore.token}`
-        },
-        body: JSON.stringify({
-          video_url: uploadedVideoUrl,
-          model_id: selectedModel.value,
-          enable_thinking: enableThinking.value
-        })
-      })
+      // 2. 设置视频URL并使用store的分析方法
+      store.setVideoUrl(uploadedVideoUrl)
 
-      if (!response.ok) {
-        throw new Error('分析请求失败')
-      }
-
-      const reader = response.body?.getReader()
-      if (!reader) throw new Error('无法读取响应流')
-
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let fullContent = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-
-              if (data.error) {
-                alert('分析失败: ' + data.error)
-                store.isAnalyzing = false
-                return
-              }
-
-              if (data.type === 'content') {
-                fullContent += data.data
-                store.rawResponse = fullContent
-                store.progress = Math.min(30 + store.progress + 2, 95)
-              } else if (data.type === 'done') {
-                store.progress = 100
-                store.rawResponse = data.data
-                console.log('AI 完整返回:', data.data)
-              }
-            } catch (e) {
-              console.error('解析流数据失败', e)
-            }
-          }
-        }
-      }
+      // 3. 调用store的分析方法处理流式响应
+      // 注意：store.startAnalysis 负责处理错误和重置状态
+      await store.startAnalysis()
     } catch (e: any) {
       console.error('分析失败', e)
       alert('分析失败: ' + (e.message || '未知错误'))
-    } finally {
-      store.isAnalyzing = false
+      // store.startAnalysis 的 catch 块已经处理了状态重置
+      // 这里不需要重复设置 isAnalyzing.value = false
     }
   }
 
   // 2. 检查用户是否登录，如果没有token就弹出登录框
   if (!userStore.token) {
+    // 重置状态（因为还没有真正开始分析）
+    isAnalyzing.value = false
     // 存储待分析操作，触发登录弹窗
     pendingAnalysis = doAnalysis
     document.dispatchEvent(new CustomEvent('showLoginModal'))
@@ -167,6 +123,8 @@ const handleAnalyze = async () => {
   } catch (error) {
     // token无效，清除并弹出登录框
     userStore.logout()
+    // 重置状态
+    isAnalyzing.value = false
     pendingAnalysis = doAnalysis
     document.dispatchEvent(new CustomEvent('showLoginModal'))
     return
@@ -220,7 +178,7 @@ onMounted(loadAvailableModels)
           type="button"
           role="switch"
           :aria-checked="enableThinking"
-          @click="enableThinking = !enableThinking"
+          @click="store.enableThinking = !enableThinking"
           :class="[
             'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
             enableThinking ? 'bg-blue-600' : 'bg-gray-200'

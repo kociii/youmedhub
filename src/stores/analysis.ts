@@ -80,6 +80,12 @@ export const useAnalysisStore = defineStore('analysis', () => {
   }
 
   const startAnalysis = async () => {
+    // 注意：isAnalyzing 应该由调用方设置（如 ConfigPanel）
+    // 这里只做防御性检查
+    if (!isAnalyzing.value) {
+      console.warn('startAnalysis 被调用但 isAnalyzing 为 false，这可能是个问题')
+    }
+
     const userStore = useUserStore()
 
     if (!videoUrl.value) {
@@ -103,7 +109,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
       return
     }
 
-    isAnalyzing.value = true
+    // 初始化状态（注意：isAnalyzing 应该已经由调用方设置为 true）
     progress.value = 0
     segments.value = []
     rawResponse.value = ''
@@ -140,15 +146,21 @@ export const useAnalysisStore = defineStore('analysis', () => {
 
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done) {
+          console.log('[流式响应] 读取完成，退出循环')
+          break
+        }
 
         const text = decoder.decode(value, { stream: true })
         const lines = text.split('\n')
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim()
+            if (!jsonStr) continue  // 跳过空数据
+
             try {
-              const data = JSON.parse(line.slice(6))
+              const data = JSON.parse(jsonStr)
 
               // 更新任务ID
               if (data.task_id) {
@@ -158,18 +170,49 @@ export const useAnalysisStore = defineStore('analysis', () => {
               if (data.type === 'content') {
                 rawResponse.value += data.data
                 // TODO: 解析内容为 segments
+                console.log(`[流式响应] 收到content，长度: ${data.data.length}`)
               } else if (data.type === 'thinking') {
                 // TODO: 显示思考过程
+                console.log(`[流式响应] 收到thinking，长度: ${data.data?.length || 0}`)
               } else if (data.type === 'done') {
+                console.log('[流式响应] 收到done事件 - 等待后端流结束')
+                // 不要在这里设置isAnalyzing = false，等待后端流结束
+              } else if (data.type === 'stream_ended') {
+                console.log('[流式响应] 收到流结束信号:', data)
+                // 后端确认流已结束，现在更新状态
                 isAnalyzing.value = false
+                console.log('[流式响应] isAnalyzing已设置为false')
+
                 // 刷新用户信息以更新点数
-                await userStore.fetchMe()
-                messageManager.success('分析完成！')
-              } else if (data.error) {
-                throw new Error(data.error)
+                try {
+                  await userStore.fetchMe()
+                  if (data.status === 'completed') {
+                    messageManager.success('分析完成！')
+                  } else {
+                    messageManager.error(`分析失败: ${data.error || '未知错误'}`)
+                  }
+                } catch (fetchError) {
+                  console.error('刷新用户信息失败:', fetchError)
+                  if (data.status === 'completed') {
+                    messageManager.success('分析完成！')
+                  }
+                }
+              } else if (data.type === 'error') {
+                console.error('[流式响应] 收到错误:', data.error)
+                throw new Error(data.error || '分析过程发生错误')
               }
-            } catch (e) {
+            } catch (e: any) {
               console.error('解析响应数据失败:', e)
+              console.error('原始数据:', jsonStr)
+
+              // 如果是JSON解析错误，尝试显示原始内容
+              if (e instanceof SyntaxError) {
+                console.warn('JSON解析失败，可能是不完整的数据块')
+                continue  // 跳过这个数据块，继续处理下一个
+              }
+
+              // 对于其他错误，抛出并停止处理
+              throw new Error(`数据处理错误: ${e.message}`)
             }
           }
         }
@@ -194,6 +237,10 @@ export const useAnalysisStore = defineStore('analysis', () => {
     videoFile.value = file
   }
 
+  const setProgress = (value: number) => {
+    progress.value = value
+  }
+
   const setCurrentSegment = (id: number) => {
     currentSegmentId.value = id
   }
@@ -212,6 +259,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
     startAnalysis,
     setVideoUrl,
     setVideoFile,
+    setProgress,
     setCurrentSegment
   }
 })
