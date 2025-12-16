@@ -6,6 +6,7 @@ interface User {
   id: number
   username: string
   email: string
+  credits: number
   created_at: string
 }
 

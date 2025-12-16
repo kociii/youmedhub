@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { userRequest } from '@/utils/request'
+import { useUserStore } from './user'
+import { messageManager } from '@/utils/message'
 
 export interface ScriptSegment {
   id: number
@@ -19,7 +22,8 @@ export const useAnalysisStore = defineStore('analysis', () => {
   const segments = ref<ScriptSegment[]>([])
   const currentSegmentId = ref<number | null>(null)
   const rawResponse = ref<string>('')
-  
+  const currentTaskId = ref<number | null>(null)
+
   // New state for configuration
   const selectedModel = ref<string>('')
   const enableThinking = ref<boolean>(false)
@@ -76,21 +80,90 @@ export const useAnalysisStore = defineStore('analysis', () => {
   }
 
   const startAnalysis = async () => {
-    if (!videoUrl.value) return
-    
+    const userStore = useUserStore()
+
+    if (!videoUrl.value) {
+      messageManager.error('请先上传视频')
+      return
+    }
+
+    if (!selectedModel.value) {
+      messageManager.error('请选择分析模型')
+      return
+    }
+
+    if (!userStore.user) {
+      messageManager.error('请先登录')
+      return
+    }
+
+    // 检查用户点数
+    if (userStore.user.credits < 5) {
+      messageManager.error('点数不足，请充值后再使用分析功能')
+      return
+    }
+
     isAnalyzing.value = true
     progress.value = 0
     segments.value = []
-    
-    // Simulate analysis progress
-    const interval = setInterval(() => {
-      progress.value += 5
-      if (progress.value >= 100) {
-        clearInterval(interval)
-        isAnalyzing.value = false
-        generateMockData()
+    rawResponse.value = ''
+
+    try {
+      const response = await userRequest.post('/api/analysis/stream', {
+        video_url: videoUrl.value,
+        model_id: selectedModel.value,
+        enable_thinking: enableThinking.value
+      })
+
+      const reader = response.data.getReader()
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const text = decoder.decode(value, { stream: true })
+        const lines = text.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              // 更新任务ID
+              if (data.task_id) {
+                currentTaskId.value = data.task_id
+              }
+
+              if (data.type === 'content') {
+                rawResponse.value += data.data
+                // TODO: 解析内容为 segments
+              } else if (data.type === 'thinking') {
+                // TODO: 显示思考过程
+              } else if (data.type === 'done') {
+                isAnalyzing.value = false
+                // 刷新用户信息以更新点数
+                await userStore.fetchMe()
+                messageManager.success('分析完成！')
+              } else if (data.error) {
+                throw new Error(data.error)
+              }
+            } catch (e) {
+              console.error('解析响应数据失败:', e)
+            }
+          }
+        }
       }
-    }, 100)
+    } catch (error: any) {
+      isAnalyzing.value = false
+      if (error.response?.status === 401) {
+        messageManager.error('请先登录')
+      } else if (error.response?.status === 402) {
+        messageManager.error('点数不足，请充值')
+      } else {
+        messageManager.error(error.message || '分析失败，请重试')
+      }
+    }
   }
 
   const setVideoUrl = (url: string) => {
@@ -113,6 +186,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
     segments,
     currentSegmentId,
     rawResponse,
+    currentTaskId,
     selectedModel,
     enableThinking,
     startAnalysis,

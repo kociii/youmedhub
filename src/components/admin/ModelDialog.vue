@@ -49,34 +49,39 @@ const handleSave = () => {
 </script>
 
 <template>
-  <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="emit('close')">
-    <div class="bg-white rounded-lg w-full max-w-md p-6 space-y-4">
+  <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm" @click.self="emit('close')">
+    <div class="bg-white rounded-xl w-full max-w-md p-6 space-y-6 shadow-2xl border border-gray-100 transform transition-all">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold text-gray-900">{{ model ? '编辑模型' : '新增模型' }}</h2>
-        <button @click="emit('close')" class="text-gray-400 hover:text-gray-600">
+        <button @click="emit('close')" class="text-gray-400 hover:text-gray-600 transition-colors">
           <X class="w-5 h-5" />
         </button>
       </div>
 
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">模型名称</label>
-          <input v-model="form.name" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" />
+          <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">模型名称</label>
+          <input v-model="form.name" type="text" class="w-full rounded-md border border-gray-200 bg-gray-50/50 px-3 py-2 text-sm focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:bg-white outline-none transition-all" placeholder="例如：Qwen-Max" />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">提供商</label>
-          <select v-model="form.provider" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none">
-            <option value="">请选择提供商</option>
-            <option value="aliyun">阿里云 (Qwen)</option>
-            <option value="智谱">智谱 (GLM)</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+          <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">提供商</label>
           <div class="relative">
-            <input v-model="form.api_key" :type="showKey ? 'text' : 'password'" class="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" />
+            <select v-model="form.provider" class="w-full appearance-none rounded-md border border-gray-200 bg-gray-50/50 px-3 py-2 text-sm focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:bg-white outline-none transition-all">
+              <option value="">请选择提供商</option>
+              <option value="aliyun">阿里云 (Qwen)</option>
+              <option value="智谱">智谱 (GLM)</option>
+            </select>
+            <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">API Key</label>
+          <div class="relative">
+            <input v-model="form.api_key" :type="showKey ? 'text' : 'password'" class="w-full rounded-md border border-gray-200 bg-gray-50/50 px-3 py-2 pr-10 text-sm focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:bg-white outline-none transition-all font-mono" placeholder="sk-..." />
             <button @click="showKey = !showKey" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
               <Eye v-if="!showKey" class="w-4 h-4" />
               <EyeOff v-else class="w-4 h-4" />
@@ -85,24 +90,24 @@ const handleSave = () => {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
-          <input v-model="form.base_url" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" />
+          <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Base URL</label>
+          <input v-model="form.base_url" type="text" class="w-full rounded-md border border-gray-200 bg-gray-50/50 px-3 py-2 text-sm focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:bg-white outline-none transition-all font-mono" placeholder="https://..." />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">提示词</label>
-          <textarea v-model="form.prompt" rows="4" placeholder="为该模型配置专属提示词..." class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"></textarea>
+          <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">提示词</label>
+          <textarea v-model="form.prompt" rows="4" placeholder="为该模型配置专属提示词..." class="w-full rounded-md border border-gray-200 bg-gray-50/50 px-3 py-2 text-sm focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:bg-white outline-none resize-none transition-all"></textarea>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">思考模式参数（JSON 格式）</label>
-          <textarea v-model="form.thinking_params" rows="3" placeholder='例如 Qwen: {"enable_thinking": true}&#10;例如 GLM: {"thinking": {"type": "enabled"}}' class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none resize-none font-mono text-xs"></textarea>
+          <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">思考模式参数（JSON）</label>
+          <textarea v-model="form.thinking_params" rows="3" placeholder='例如 Qwen: {"enable_thinking": true}' class="w-full rounded-md border border-gray-200 bg-gray-50/50 px-3 py-2 text-xs font-mono focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:bg-white outline-none resize-none transition-all"></textarea>
         </div>
       </div>
 
-      <div class="flex gap-2 pt-4">
-        <Button @click="emit('close')" class="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200">取消</Button>
-        <Button @click="handleSave" class="flex-1 bg-blue-600 text-white hover:bg-blue-700">保存</Button>
+      <div class="flex justify-end gap-3 pt-2">
+        <Button variant="outline" @click="emit('close')" class="border-gray-200 hover:bg-gray-50 text-gray-700">取消</Button>
+        <Button @click="handleSave" class="bg-gray-900 text-white hover:bg-gray-800 shadow-sm">保存配置</Button>
       </div>
     </div>
   </div>

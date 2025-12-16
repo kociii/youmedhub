@@ -18,11 +18,12 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == request.email).first():
         raise HTTPException(status_code=400, detail="邮箱已存在")
 
-    # 创建用户
+    # 创建用户，给予初始点数
     user = User(
         username=request.username,
         email=request.email,
-        hashed_password=get_password_hash(request.password)
+        hashed_password=get_password_hash(request.password),
+        credits=10  # 新用户注册赠送10点
     )
     db.add(user)
     db.commit()
@@ -49,6 +50,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             id=user.id,
             username=user.username,
             email=user.email,
+            credits=user.credits,
             created_at=user.created_at
         )
     )

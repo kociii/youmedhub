@@ -86,52 +86,54 @@ onMounted(loadConfig)
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-8 max-w-7xl mx-auto space-y-8">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-semibold text-gray-900">AI 模型管理</h1>
-        <p class="text-sm text-gray-500 mt-1">配置和管理您的 AI 模型</p>
+        <h1 class="text-2xl font-bold text-gray-900 tracking-tight">AI 模型</h1>
+        <p class="text-sm text-gray-500 mt-1">配置和管理您的 AI 模型接口</p>
       </div>
-      <Button @click="handleAdd" class="bg-blue-600 text-white hover:bg-blue-700">
+      <Button @click="handleAdd" class="bg-gray-900 text-white hover:bg-gray-800 shadow-sm transition-all">
         <Plus class="w-4 h-4 mr-2" />
         新增模型
       </Button>
     </div>
 
-    <div class="bg-white rounded-lg border border-gray-200">
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
       <table class="w-full">
-        <thead class="border-b border-gray-200">
+        <thead class="bg-gray-50/50 border-b border-gray-200">
           <tr>
-            <th class="text-left px-6 py-3 text-sm font-medium text-gray-700">模型名称</th>
-            <th class="text-left px-6 py-3 text-sm font-medium text-gray-700">提供商</th>
-            <th class="text-left px-6 py-3 text-sm font-medium text-gray-700">Base URL</th>
-            <th class="text-left px-6 py-3 text-sm font-medium text-gray-700">状态</th>
-            <th class="text-right px-6 py-3 text-sm font-medium text-gray-700">操作</th>
+            <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">模型名称</th>
+            <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">提供商</th>
+            <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Base URL</th>
+            <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+            <th class="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
           </tr>
         </thead>
-        <tbody>
-          <tr v-for="model in models" :key="model.id" class="border-b border-gray-100 hover:bg-gray-50">
+        <tbody class="divide-y divide-gray-100">
+          <tr v-for="model in models" :key="model.id" class="hover:bg-gray-50/50 transition-colors">
             <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ model.name }}</td>
-            <td class="px-6 py-4 text-sm text-gray-600">{{ model.provider }}</td>
-            <td class="px-6 py-4 text-sm text-gray-600 truncate max-w-xs">{{ model.base_url }}</td>
+            <td class="px-6 py-4 text-sm text-gray-600">
+              <span class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-xs font-medium text-gray-700 border border-gray-200">
+                {{ model.provider }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-sm text-gray-500 font-mono text-xs truncate max-w-xs">{{ model.base_url }}</td>
             <td class="px-6 py-4">
-              <span v-if="model.has_key" class="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 text-xs rounded-full">
-                <CheckCircle class="w-3 h-3" />
+              <span v-if="model.has_key" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200/50">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                 已配置
               </span>
-              <span v-else class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 text-gray-500 text-xs rounded-full">
-                <XCircle class="w-3 h-3" />
+              <span v-else class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
                 未配置
               </span>
             </td>
             <td class="px-6 py-4 text-right">
               <div class="flex gap-2 justify-end">
-                <Button @click="handleEdit(model)" class="text-sm bg-gray-100 text-gray-700 hover:bg-gray-200">
-                  <Edit class="w-3 h-3 mr-1" />
+                <Button @click="handleEdit(model)" variant="outline" size="sm" class="h-8 text-xs border-gray-200 hover:bg-gray-50 hover:text-gray-900">
                   编辑
                 </Button>
-                <Button @click="handleDelete(model)" class="text-sm bg-red-50 text-red-600 hover:bg-red-100">
-                  <Trash2 class="w-3 h-3 mr-1" />
+                <Button @click="handleDelete(model)" variant="ghost" size="sm" class="h-8 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50">
                   删除
                 </Button>
               </div>

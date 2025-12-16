@@ -42,9 +42,15 @@ adminRequest.interceptors.response.use(
 // 前端用户请求拦截器
 userRequest.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('user_token')
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`
+    // 排除认证接口
+    const isAuthRoute = config.url?.includes('/api/auth/') &&
+                     (config.method?.toLowerCase() === 'post')
+
+    if (!isAuthRoute) {
+      const token = localStorage.getItem('user_token')
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
     }
     return config
   },

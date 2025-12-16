@@ -1,6 +1,12 @@
 from pydantic import BaseModel
 from datetime import datetime
 
+class AdminLoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    username: str
+    is_admin: bool
+
 class UserListResponse(BaseModel):
     id: int
     username: str
