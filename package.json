@@ -9,34 +9,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ffmpeg/ffmpeg": "^0.12.15",
-    "@ffmpeg/util": "^0.12.2",
-    "ali-oss": "^6.23.0",
-    "bootstrap": "5.3.0",
-    "bootstrap-icons": "1.10.0",
-    "markdown-it": "^14.1.0",
-    "markdown-it-emoji": "^3.0.0",
-    "markdown-it-footnote": "^4.0.0",
-    "markdown-it-ins": "^4.0.0",
-    "markdown-it-mark": "^4.0.0",
-    "markdown-it-sub": "^2.0.0",
-    "markdown-it-sup": "^2.0.0",
-    "vue": "^3.5.24",
-    "vue-renderer-markdown": "0.0.63-beta.0",
-    "xlsx": "^0.18.5"
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-vue-next": "^0.563.0",
+    "radix-vue": "^1.9.17",
+    "tailwind-merge": "^3.4.0",
+    "vue": "^3.5.13"
   },
   "devDependencies": {
-    "@types/ali-oss": "^6.16.13",
-    "@types/node": "^24.10.1",
-    "@vitejs/plugin-vue": "^6.0.1",
-    "@vue/tsconfig": "^0.8.1",
-    "typescript": "~5.9.3",
-    "vite": "npm:rolldown-vite@7.2.5",
-    "vue-tsc": "^3.1.4"
-  },
-  "pnpm": {
-    "overrides": {
-      "vite": "npm:rolldown-vite@7.2.5"
-    }
+    "@vitejs/plugin-vue": "^6.0.4",
+    "autoprefixer": "^10.4.24",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.7.2",
+    "vite": "^7.3.1",
+    "vue-tsc": "^2.2.0"
   }
 }

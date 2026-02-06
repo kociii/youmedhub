@@ -1,74 +1,9 @@
 {
-  "mcpServers": {
-    "web-search-prime": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@kimtaeyoon83/mcp-server-web-search-prime@latest"
-      ]
-    },
-    "metaso": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@kimtaeyoon83/mcp-server-metaso@latest"
-      ]
-    },
-    "deepwiki": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@kimtaeyoon83/mcp-server-deepwiki@latest"
-      ]
-    },
-    "context7": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@context7/mcp-server@latest"
-      ]
-    },
-    "ide": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-vscode@latest"
-      ]
-    },
-    "magic": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@21st-dev/mcp-server-magic@latest"
-      ]
-    },
-    "nuxt-ui": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@nuxt/ui-mcp-server@latest"
-      ]
-    },
-    "sequential-thinking": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking@latest"
-      ]
-    },
-    "zai-mcp-server": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "zai-mcp-server@latest"
-      ]
-    },
-    "playwright": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@executeautomation/playwright-mcp-server@latest"
-      ]
+    "mcpServers": {
+      "shadcn": {
+        "command": "npx",
+        "args": ["shadcn-vue@latest", "mcp"]
+      }
     }
   }
-}
+  

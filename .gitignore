@@ -12,10 +12,6 @@ dist
 dist-ssr
 *.local
 
-# Environment variables with real secrets
-.env
-.env.local
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -26,10 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# Custom directories
-guidang/
-
-# Local cache files (dev only)
-video-analysis-cache.json
-*.cache.json

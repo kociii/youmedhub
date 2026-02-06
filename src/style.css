@@ -1,65 +1,59 @@
-:root {
-  /* OKLCH Color System based on #328EFD */
-  /* Base Hue for #328EFD is approx 260-265 in OKLCH */
-  --primary-hue: 265;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  /* Primary Colors */
-  /* Main Brand Color: #328EFD matches closely to oklch(62% 0.22 265) */
-  --color-primary: oklch(62% 0.22 var(--primary-hue));
-  --color-primary-hover: oklch(55% 0.22 var(--primary-hue));
-  --color-primary-active: oklch(48% 0.22 var(--primary-hue));
-  --color-primary-subtle: oklch(96% 0.04 var(--primary-hue));
-  --color-primary-light: oklch(90% 0.08 var(--primary-hue));
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --radius: 0.5rem;
+  }
 
-  /* Neutral Colors (Tinted with Blue) */
-  --color-bg-page: rgba(0, 0, 0, 0.01);
-  --color-bg-card: oklch(100% 0 0);
-  --color-bg-hover: oklch(97% 0.01 var(--primary-hue));
-  
-  --color-text-primary: oklch(25% 0.04 var(--primary-hue));   /* Dark Blue-Grey */
-  --color-text-secondary: oklch(45% 0.04 var(--primary-hue)); /* Medium Blue-Grey */
-  --color-text-tertiary: oklch(65% 0.03 var(--primary-hue));  /* Light Blue-Grey */
-  --color-text-invert: oklch(100% 0 0);
-
-  --color-border: oklch(88% 0.02 var(--primary-hue));
-  --color-border-hover: oklch(75% 0.05 var(--primary-hue));
-
-  /* Semantic Colors */
-  --color-success: oklch(65% 0.18 150);
-  --color-success-bg: oklch(96% 0.03 150);
-  --color-error: oklch(60% 0.20 25);
-  --color-error-bg: oklch(97% 0.02 25);
-  --color-warning: oklch(75% 0.15 85);
-
-  /* Shadows & Overlays */
-  --shadow-sm: 0 1px 2px 0 oklch(25% 0.04 var(--primary-hue) / 0.05);
-  --shadow-md: 0 4px 6px -1px oklch(25% 0.04 var(--primary-hue) / 0.1), 0 2px 4px -1px oklch(25% 0.04 var(--primary-hue) / 0.06);
-  --overlay-bg: oklch(0% 0 0 / 0.5);
-
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-page);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+  }
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html, body, #app {
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-}
-
-body {
-  margin: 0;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
