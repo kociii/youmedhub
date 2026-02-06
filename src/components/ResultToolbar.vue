@@ -2,10 +2,11 @@
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 import { exportToExcel } from '@/utils/exportExcel'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { FileSpreadsheet, FileText, Table2 } from 'lucide-vue-next'
 
-const { viewMode, scriptItems, hasResult } = useVideoAnalysis()
+const { viewMode, scriptItems, hasResult, tokenUsage } = useVideoAnalysis()
 </script>
 
 <template>
@@ -36,6 +37,15 @@ const { viewMode, scriptItems, hasResult } = useVideoAnalysis()
     </div>
 
     <div class="flex-1" />
+
+    <div v-if="tokenUsage" class="flex items-center gap-2">
+      <Badge variant="secondary" class="text-xs">
+        输入 {{ tokenUsage.prompt_tokens.toLocaleString() }}
+      </Badge>
+      <Badge variant="secondary" class="text-xs">
+        输出 {{ tokenUsage.completion_tokens.toLocaleString() }}
+      </Badge>
+    </div>
 
     <Button
       v-if="hasResult && scriptItems.length"

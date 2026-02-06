@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-02-06
+
+### Added
+
+- **模型选择**：分析控制面板新增 AI 模型下拉选择，支持 qwen3-vl-flash 和 qwen3-vl-plus
+
+### Changed
+
+- **分析控制精简**：移除 Card 容器包裹，仅保留模型选择 + 开始分析按钮 + 错误提示
+- **Token 信息移位**：Token 用量统计从左侧面板移至右侧工具栏（导出按钮左侧）
+- **分镜表格列合并**：12 列缩减为 9 列
+  - 景别 + 运镜合并为「景别/运镜」列，使用色彩 Badge 标签区分（景别蓝色、运镜琥珀色）
+  - 开始 + 结束 + 时长合并为「时间」列，时长使用 Clock 图标
+- **分镜表格样式优化**：序号、景别/运镜、时间、视频预览列居中对齐；表头字号缩小为 text-xs
+- **视频预览改造**：从点击播放改为 hover 自动播放（mouseenter 播放 / mouseleave 暂停回到起始帧），静音播放
+- **视频预览等比缩放**：移除固定尺寸裁切（h-20 w-32 object-cover），改为等比缩放（max-h-[260px] object-contain）
+- **分析流程 viewMode 自动切换**：开始分析时切换到「原始内容」查看流式输出，分析完成后自动切换到「分镜表格」
+- **文本字段 `<br>` 处理**：AI 返回内容中的 `<br>` 标签转换为换行显示，使用 computed 预处理避免模板重复计算
+
+### Fixed
+
+- **video.play() Promise 未处理**：hover 播放添加 `.catch(() => {})` 防止浏览器自动播放策略导致的 unhandled rejection
+
 ## [0.2.0] - 2026-02-06
 
 ### Added

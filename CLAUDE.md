@@ -45,13 +45,13 @@ src/
 │   ├── ApiKeyDialog.vue       # F5 API Key 配置弹窗
 │   ├── VideoUploader.vue      # F1 拖拽/点击上传
 │   ├── VideoPreview.vue       # F1 视频预览播放器
-│   ├── AnalysisControl.vue    # F2 分析控制面板
+│   ├── AnalysisControl.vue    # F2 模型选择 + 分析按钮
 │   ├── LeftPanel.vue          # 左侧面板容器
 │   ├── RightPanel.vue         # 右侧主区域容器
-│   ├── ResultToolbar.vue      # F3 模式切换 + F4 导出按钮
+│   ├── ResultToolbar.vue      # F3 模式切换 + Token 统计 + F4 导出按钮
 │   ├── MarkdownView.vue       # F3 Markdown 流式渲染（markstream-vue）
-│   ├── ScriptTable.vue        # F3 分镜脚本表格
-│   └── VideoSegmentPlayer.vue # F3 行内视频片段播放器
+│   ├── ScriptTable.vue        # F3 分镜脚本表格（9 列 + 色彩标签 + computed 预处理）
+│   └── VideoSegmentPlayer.vue # F3 视频片段 hover 播放器（等比缩放 + 静音）
 ├── composables/
 │   └── useVideoAnalysis.ts    # 全局状态管理（ref 单例模式，无需 Pinia）
 ├── lib/
@@ -136,9 +136,25 @@ api/
 
 ### 已知限制与后续注意事项
 
-- **AI 模型名称**：当前硬编码为 `qwen3-vl-flash`，如需切换模型应通过 `AIModel` 类型约束，不要用 `as any` 绕过
+- **AI 模型名称**：当前支持 `qwen3-vl-flash` 和 `qwen3-vl-plus`，通过 `AIModel` 类型约束，`AnalysisControl.vue` 中使用 `<select>` 绑定 `ref<AIModel>`
 - **SSE 流解析**：已实现 buffer 机制，但如果 API 返回非标准 SSE 格式仍可能出问题，修改时需保留 buffer 逻辑
 - **全局状态单例**：`useVideoAnalysis` 的 ref/computed 定义在模块顶层，新增状态或计算属性时也应放在模块顶层，不要放在函数内部
-- **VideoSegmentPlayer**：当前每个激活的播放器仍会创建独立 video 元素，如果未来表格行数非常多（50+）且用户同时激活多个，可考虑共享单个 video 元素
+- **VideoSegmentPlayer**：当前每个播放器直接渲染 `<video>` 元素（preload=metadata），hover 播放/暂停。如果未来表格行数非常多（50+），可考虑虚拟滚动或共享单个 video 元素
 - **OSS 客户端配置**：`temporaryFile.ts` 中 `clientConfig` 仍使用 `any` 类型，后续可替换为 `ali-oss` 提供的类型
 - **主 chunk 体积**：构建产物 `index.js` 约 1.5MB（gzip 477KB），主要来自 `ali-oss` 和 `markstream-vue`，后续可通过 `manualChunks` 拆分或动态 import 优化
+
+## v0.2.1 审查修复记录
+
+### 已修复
+
+1. **分析控制精简**：`AnalysisControl.vue` 移除 Card 包裹和 Token Badge，仅保留模型选择 + 按钮 + 错误提示
+2. **Token 信息移位**：Token 统计从 `AnalysisControl.vue` 移至 `ResultToolbar.vue`
+3. **分镜表格列合并**：景别+运镜合并为 1 列（色彩 Badge）；开始+结束+时长合并为 1 列（Clock 图标）；12 列→9 列
+4. **视频预览 hover 播放**：移除点击激活逻辑，改为 mouseenter/mouseleave 自动播放/暂停，添加 muted 属性
+5. **视频等比缩放**：`h-20 w-32 object-cover` → `max-h-[260px] w-full object-contain`
+6. **viewMode 自动切换**：开始分析时 `viewMode='markdown'`，完成后 `viewMode='table'`
+7. **`<br>` 转换行**：`ScriptTable.vue` 使用 computed 预处理文本字段中的 `<br>` 标签
+8. **video.play() Promise**：`VideoSegmentPlayer.vue` 添加 `.catch(() => {})` 防止 unhandled rejection
+9. **模型选择**：新增 `<select>` 下拉框，支持 qwen3-vl-flash / qwen3-vl-plus，绑定 `ref<AIModel>` 类型
+10. **表头字号缩小**：所有 TableHead 添加 `text-xs`
+11. **列居中对齐**：序号、景别/运镜、时间、视频预览列居中

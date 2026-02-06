@@ -2,16 +2,16 @@
 import { ref } from 'vue'
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 import { analyzeVideo } from '@/api/videoAnalysis'
+import type { AIModel } from '@/api/videoAnalysis'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
 import { Loader2, Play } from 'lucide-vue-next'
 
 const {
   videoUrl, apiKey, analysisStatus, markdownContent,
-  scriptItems, tokenUsage, hasVideo, isAnalyzing,
+  scriptItems, tokenUsage, hasVideo, isAnalyzing, viewMode,
 } = useVideoAnalysis()
 
+const selectedModel = ref<AIModel>('qwen3-vl-flash')
 const errorMessage = ref('')
 
 async function startAnalysis() {
@@ -20,12 +20,13 @@ async function startAnalysis() {
   scriptItems.value = []
   tokenUsage.value = null
   errorMessage.value = ''
+  viewMode.value = 'markdown'
 
   try {
     const result = await analyzeVideo(
       videoUrl.value,
       apiKey.value,
-      'qwen3-vl-flash',
+      selectedModel.value,
       undefined,
       undefined,
       (chunk) => {
@@ -37,6 +38,7 @@ async function startAnalysis() {
     )
     scriptItems.value = result.rep
     analysisStatus.value = 'success'
+    viewMode.value = 'table'
   } catch (e) {
     errorMessage.value = e instanceof Error ? e.message : '分析失败，请重试'
     console.error('分析失败:', e)
@@ -46,8 +48,18 @@ async function startAnalysis() {
 </script>
 
 <template>
-  <Card class="space-y-3 p-4">
+  <div class="space-y-2">
+    <select
+      v-model="selectedModel"
+      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+      :disabled="isAnalyzing"
+    >
+      <option value="qwen3-vl-flash">qwen3-vl-flash</option>
+      <option value="qwen3-vl-plus">qwen3-vl-plus</option>
+    </select>
+
     <Button
+      variant="outline"
       class="w-full"
       :disabled="!hasVideo || isAnalyzing || !apiKey"
       @click="startAnalysis"
@@ -60,14 +72,5 @@ async function startAnalysis() {
     <div v-if="analysisStatus === 'error'" class="text-xs text-destructive">
       {{ errorMessage }}
     </div>
-
-    <div v-if="tokenUsage" class="flex flex-wrap gap-2">
-      <Badge variant="secondary" class="text-xs">
-        输入 {{ tokenUsage.prompt_tokens.toLocaleString() }}
-      </Badge>
-      <Badge variant="secondary" class="text-xs">
-        输出 {{ tokenUsage.completion_tokens.toLocaleString() }}
-      </Badge>
-    </div>
-  </Card>
+  </div>
 </template>
