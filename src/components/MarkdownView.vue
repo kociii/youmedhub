@@ -1,28 +1,20 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { computed } from 'vue'
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
-import type { ParsedNode } from 'markstream-vue'
-import MarkdownRender, { getMarkdown, parseMarkdownToStructure } from 'markstream-vue'
+import MarkdownRender from 'markstream-vue'
 import 'markstream-vue/index.css'
 
 const { markdownContent, analysisStatus } = useVideoAnalysis()
 
-const md = getMarkdown()
-const nodes = ref<ParsedNode[]>([])
 const isFinal = computed(() => analysisStatus.value === 'success' || analysisStatus.value === 'error')
-
-watch(markdownContent, (val) => {
-  if (val) {
-    nodes.value = parseMarkdownToStructure(val, md)
-  }
-})
 </script>
 
 <template>
   <MarkdownRender
-    :nodes="nodes"
-    :max-live-nodes="0"
-    :batch-rendering="true"
+    :content="markdownContent"
     :final="isFinal"
+    :max-live-nodes="0"
+    :render-batch-size="16"
+    :render-batch-delay="8"
   />
 </template>

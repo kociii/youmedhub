@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 import { analyzeVideo } from '@/api/videoAnalysis'
 import { Button } from '@/components/ui/button'
@@ -11,22 +12,20 @@ const {
   scriptItems, tokenUsage, hasVideo, isAnalyzing,
 } = useVideoAnalysis()
 
-async function startAnalysis() {
-  if (!apiKey.value) {
-    alert('请先设置 API Key')
-    return
-  }
+const errorMessage = ref('')
 
+async function startAnalysis() {
   analysisStatus.value = 'analyzing'
   markdownContent.value = ''
   scriptItems.value = []
   tokenUsage.value = null
+  errorMessage.value = ''
 
   try {
     const result = await analyzeVideo(
       videoUrl.value,
       apiKey.value,
-      'qwen-vl-flash' as any,
+      'qwen3-vl-flash',
       undefined,
       undefined,
       (chunk) => {
@@ -38,7 +37,8 @@ async function startAnalysis() {
     )
     scriptItems.value = result.rep
     analysisStatus.value = 'success'
-  } catch (e: any) {
+  } catch (e) {
+    errorMessage.value = e instanceof Error ? e.message : '分析失败，请重试'
     console.error('分析失败:', e)
     analysisStatus.value = 'error'
   }
@@ -58,7 +58,7 @@ async function startAnalysis() {
     </Button>
 
     <div v-if="analysisStatus === 'error'" class="text-xs text-destructive">
-      分析失败，请重试
+      {{ errorMessage }}
     </div>
 
     <div v-if="tokenUsage" class="flex flex-wrap gap-2">

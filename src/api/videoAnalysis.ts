@@ -42,8 +42,6 @@ function parseMarkdownTable(markdown: string): VideoAnalysisResponse {
     // 分割单元格，去除首尾的 |
     const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell);
 
-    console.log(`[DEBUG] 第 ${i} 行，共 ${cells.length} 列:`, cells);
-
     if (cells.length >= 11) {
       rep.push({
         sequenceNumber: parseInt(cells[0] || '0') || 0,
@@ -59,7 +57,7 @@ function parseMarkdownTable(markdown: string): VideoAnalysisResponse {
         duration: cells[10] || '',
       });
     } else {
-      console.warn(`[DEBUG] 第 ${i} 行列数不足（${cells.length} < 11），跳过`);
+      console.warn(`表格第 ${i} 行列数不足（${cells.length} < 11），跳过`);
     }
   }
 
@@ -152,51 +150,40 @@ async function analyzeVideoByUrl(
     throw new Error('无法读取响应流');
   }
 
-  console.log('[DEBUG] 开始处理流式响应...');
+  let buffer = '';
 
   try {
     while (true) {
       const { done, value } = await reader.read();
 
-      if (done) {
-        console.log(`[DEBUG] 流式响应结束，共接收 ${chunkCount} 个 chunks，总长度: ${fullContent.length}`);
-        break;
-      }
+      if (done) break;
 
-      // 解码数据块
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n').filter(line => line.trim());
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // 保留最后一个可能不完整的行
 
       for (const line of lines) {
-        // SSE 格式: data: {...}
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6); // 移除 "data: " 前缀
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
 
-          // 检查是否是结束信号
-          if (data === '[DONE]') {
-            continue;
+        const data = trimmed.slice(6);
+        if (data === '[DONE]') continue;
+
+        try {
+          const json = JSON.parse(data);
+          const content = json.choices?.[0]?.delta?.content;
+
+          if (content) {
+            chunkCount++;
+            fullContent += content;
+            onStream?.(content);
           }
 
-          try {
-            const json = JSON.parse(data);
-            const content = json.choices?.[0]?.delta?.content;
-
-            if (content) {
-              chunkCount++;
-              fullContent += content;
-              console.log(`[DEBUG] 接收第 ${chunkCount} 个 chunk，长度: ${content.length}，累计: ${fullContent.length}`);
-              onStream?.(content); // 调用流式回调
-            }
-
-            // 最后一个 chunk 包含 usage 信息
-            if (json.usage) {
-              onTokenUsage?.(json.usage);
-              console.log('[DEBUG] Token 使用统计:', json.usage);
-            }
-          } catch (e) {
-            // 忽略解析错误，继续处理下一行
-            console.warn('[DEBUG] 解析 SSE 数据失败:', e);
+          if (json.usage) {
+            onTokenUsage?.(json.usage);
           }
+        } catch {
+          // 忽略解析错误，继续处理下一行
         }
       }
     }
@@ -209,8 +196,6 @@ async function analyzeVideoByUrl(
   }
 
   onProgress?.('正在解析分析结果...');
-
-  console.log('[DEBUG] 完整的 Markdown 内容:', fullContent);
 
   // 将 Markdown 转换为 JSON
   return parseMarkdownTable(fullContent);

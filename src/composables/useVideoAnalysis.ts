@@ -15,11 +15,11 @@ const viewMode = ref<'markdown' | 'table'>('table')
 
 const apiKey = ref(localStorage.getItem('dashscope_api_key') || '')
 
-export function useVideoAnalysis() {
-  const hasVideo = computed(() => !!videoUrl.value)
-  const hasResult = computed(() => !!markdownContent.value)
-  const isAnalyzing = computed(() => analysisStatus.value === 'analyzing')
+const hasVideo = computed(() => !!videoUrl.value)
+const hasResult = computed(() => !!markdownContent.value)
+const isAnalyzing = computed(() => analysisStatus.value === 'analyzing')
 
+export function useVideoAnalysis() {
   function setApiKey(key: string) {
     apiKey.value = key
     localStorage.setItem('dashscope_api_key', key)

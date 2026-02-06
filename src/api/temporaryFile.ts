@@ -157,11 +157,11 @@ export function formatFileSize(bytes: number): string {
 // 验证文件类型和大小
 export function validateVideoFile(file: File): { isValid: boolean; error?: string } {
   // 检查文件类型
-  const validTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'];
+  const validTypes = ['video/mp4', 'video/quicktime'];
   if (!validTypes.includes(file.type)) {
     return {
       isValid: false,
-      error: '不支持的文件格式。请使用 MP4、WebM、MOV、AVI 或 MKV 格式的视频文件。'
+      error: '不支持的文件格式。请使用 MP4 或 MOV 格式的视频文件。'
     };
   }
 

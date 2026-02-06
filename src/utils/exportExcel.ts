@@ -1,8 +1,8 @@
 import * as XLSX from 'xlsx';
 import type { VideoScriptItem } from '../types/video';
 
-export function exportToExcel(items: VideoScriptItem[] | undefined, filename = '视频分析结果') {
-  if (!items?.length) return;
+export function exportToExcel(items: VideoScriptItem[], filename = '视频分析结果') {
+  if (!items.length) return;
   const data = items.map(item => ({
     '序号': item.sequenceNumber,
     '景别': item.shotType,

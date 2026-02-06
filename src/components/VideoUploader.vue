@@ -58,8 +58,8 @@ async function handleFile(file: File) {
     })
     videoUrl.value = result.downloadLink
     uploadStatus.value = 'success'
-  } catch (e: any) {
-    errorMsg.value = e.message || '上传失败'
+  } catch (e) {
+    errorMsg.value = e instanceof Error ? e.message : '上传失败'
     uploadStatus.value = 'error'
   }
 }
