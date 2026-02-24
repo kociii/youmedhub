@@ -4,6 +4,13 @@ import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 import { analyzeVideo } from '@/api/videoAnalysis'
 import type { AIModel } from '@/api/videoAnalysis'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Loader2, Play } from 'lucide-vue-next'
 
 const {
@@ -49,14 +56,15 @@ async function startAnalysis() {
 
 <template>
   <div class="space-y-2">
-    <select
-      v-model="selectedModel"
-      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-      :disabled="isAnalyzing"
-    >
-      <option value="qwen3-vl-flash">qwen3-vl-flash</option>
-      <option value="qwen3-vl-plus">qwen3-vl-plus</option>
-    </select>
+    <Select v-model="selectedModel" :disabled="isAnalyzing">
+      <SelectTrigger>
+        <SelectValue placeholder="选择模型" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="qwen3-vl-flash">qwen3-vl-flash</SelectItem>
+        <SelectItem value="qwen3-vl-plus">qwen3-vl-plus</SelectItem>
+      </SelectContent>
+    </Select>
 
     <Button
       variant="outline"
