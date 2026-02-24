@@ -85,7 +85,12 @@ async function handleRegister() {
 
   try {
     await auth.signUp(email.value, password.value)
-    success.value = '注册成功！请查收验证邮件'
+    // 注册成功后清空表单，切换到登录 tab
+    success.value = '注册成功！请登录'
+    setTimeout(() => {
+      resetForm()
+      activeTab.value = 'login'
+    }, 1500)
   } catch (e) {
     error.value = e instanceof Error ? e.message : '注册失败'
   } finally {
