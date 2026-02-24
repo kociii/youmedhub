@@ -41,7 +41,7 @@
 
 | 信息 | 说明 | 示例 |
 |------|------|------|
-| Project URL | 项目 API 地址 | `https://xxx.supabase.co` |
+| Project URL | 项目 API 地址 | `https://itvxtgubawholioliysr.supabase.co` |
 | anon public | 匿名访问密钥（公开） | `eyJhbGciOiJIUzI1NiIs...` |
 | service_role | 服务端密钥（保密） | `eyJhbGciOiJIUzI1NiIs...` |
 
@@ -244,12 +244,7 @@ WHERE table_schema = 'public';
 |------|-----|
 | Application name | `YouMedHub` |
 | Homepage URL | `https://www.youmedhub.com` |
-| Authorization callback URL | `{你的 Supabase URL}/auth/v1/callback` |
-
-**示例：**
-```
-https://itvxtgubawholioliysr.supabase.co/auth/v1/callback
-```
+| Authorization callback URL | `https://itvxtgubawholioliysr.supabase.co/auth/v1/callback` |
 
 4. 点击 `Register application`
 5. 记录 `Client ID` 和 `Client Secret`
@@ -392,23 +387,12 @@ WHERE schemaname = 'public';
 ### 4.2 配置 URL 白名单
 
 1. 进入 `Authentication` → `URL Configuration`
-2. 配置 `Site URL`：
-
-| 环境 | 值 |
-|------|-----|
-| 开发 | `http://localhost:5173` |
-| 生产 | `https://your-domain.vercel.app` |
-
+2. 配置 `Site URL`：`https://www.youmedhub.com`
 3. 配置 `Redirect URLs`：
 
 ```
-# 开发环境
 http://localhost:5173/**
-http://localhost:5173/auth/v1/callback
-
-# 生产环境（替换 your-domain）
-https://your-domain.vercel.app/**
-https://your-domain.vercel.app/auth/v1/callback
+https://www.youmedhub.com/**
 ```
 
 ### 4.3 配置 JWT 设置（可选）
@@ -426,7 +410,7 @@ https://your-domain.vercel.app/auth/v1/callback
 
 ```env
 # Supabase（必填）
-VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_URL=https://itvxtgubawholioliysr.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
 
 # 阿里云 OSS（已有）
@@ -442,7 +426,7 @@ VITE_ALIYUN_OSS_BUCKET=your-bucket
 
 | 变量名 | 值 |
 |--------|-----|
-| `VITE_SUPABASE_URL` | `https://xxx.supabase.co` |
+| `VITE_SUPABASE_URL` | `https://itvxtgubawholioliysr.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIs...` |
 
 ---
@@ -468,10 +452,10 @@ WHERE table_schema = 'public'
   AND table_name = 'script_favorites'
 ORDER BY ordinal_position;
 
--- 测试 RLS 策略数量（应该是 7 个：profiles 3个 + script_favorites 4个）
+-- 测试 RLS 策略数量（应该是 10 个：profiles 3 + user_settings 3 + script_favorites 4）
 SELECT COUNT(*) as policy_count
 FROM pg_policies
-WHERE tablename IN ('profiles', 'script_favorites');
+WHERE tablename IN ('profiles', 'user_settings', 'script_favorites');
 ```
 
 ### 6.2 前端连接测试
@@ -514,6 +498,7 @@ testConnection()
 
 - [ ] 项目创建成功，项目 URL 和 Anon Key 已获取
 - [ ] `profiles` 表创建成功
+- [ ] `user_settings` 表创建成功
 - [ ] `script_favorites` 表创建成功
 - [ ] 索引创建成功
 - [ ] RLS 策略配置成功
