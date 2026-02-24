@@ -18,8 +18,8 @@ export interface ModelConfig {
 export const AVAILABLE_MODELS: ModelConfig[] = [
   // 阿里百炼 - 通义千问
   {
-    id: 'qwen-vl-max',
-    name: 'qwen-vl-max',
+    id: 'qwen3.5-plus',
+    name: 'Qwen3.5',
     provider: 'aliyun',
     providerName: '阿里百炼',
     description: '通义千问多模态大模型',
@@ -27,8 +27,8 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   },
   // 阿里百炼 - 通义千问 Flash
   {
-    id: 'qwen-vl-max-latest',
-    name: 'qwen-vl-max-latest',
+    id: 'qwen-vl-flash',
+    name: 'qwen-vl-flash',
     provider: 'aliyun',
     providerName: '阿里百炼',
     description: '通义千问多模态大模型最新版',
@@ -36,17 +36,8 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   },
   // 火山引擎 - Doubao
   {
-    id: 'doubao-1-5-pro-32k-250115',
-    name: 'Doubao-1.5-pro-32k',
-    provider: 'volcengine',
-    providerName: '火山引擎',
-    description: '豆包大模型 Pro 版',
-    capabilities: ['video', 'image', 'text'],
-  },
-  // 火山引擎 - Doubao Lite
-  {
-    id: 'doubao-1-5-lite-32k-250115',
-    name: 'Doubao-1.5-lite-32k',
+    id: 'doubao-seed-2-0-pro-260215',
+    name: 'Doubao-2.0',
     provider: 'volcengine',
     providerName: '火山引擎',
     description: '豆包大模型 Lite 版',
