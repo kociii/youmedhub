@@ -226,6 +226,8 @@ WHERE table_schema = 'public';
 
 ### 3.2 配置 GitHub OAuth（可选但推荐）
 
+> ⚠️ **注意**：GitHub OAuth App 的回调 URL 只支持单个地址，无法配置多个。建议本地开发使用邮箱登录，GitHub OAuth 仅用于生产环境。
+
 #### 步骤 1：创建 GitHub OAuth App
 
 1. 访问 [GitHub Developer Settings](https://github.com/settings/developers)
@@ -236,15 +238,7 @@ WHERE table_schema = 'public';
 |------|-----|
 | Application name | `YouMedHub` |
 | Homepage URL | `https://www.youmedhub.com` |
-| Authorization callback URL | 见下方 |
-
-**回调 URL（支持多环境）：**
-```
-http://localhost:5173/auth/v1/callback
-https://www.youmedhub.com/auth/v1/callback
-```
-
-> 💡 GitHub OAuth App 支持配置多个回调 URL，生产和开发环境可共用同一个 App。
+| Authorization callback URL | `https://www.youmedhub.com/auth/v1/callback` |
 
 4. 点击 `Register application`
 5. 记录 `Client ID` 和 `Client Secret`
@@ -259,20 +253,21 @@ https://www.youmedhub.com/auth/v1/callback
 #### 步骤 3：配置 Supabase URL 白名单
 
 1. 进入 `Authentication` → `URL Configuration`
-2. 配置 `Site URL`（生产环境）：
-
-| 环境 | 值 |
-|------|-----|
-| 生产 | `https://www.youmedhub.com` |
-
-3. 配置 `Redirect URLs`（允许列表）：
+2. 配置 `Site URL`：`https://www.youmedhub.com`
+3. 配置 `Redirect URLs`：
 
 ```
 http://localhost:5173/**
 https://www.youmedhub.com/**
 ```
 
-> ⚠️ Supabase 的 Site URL 是全局的，不支持按环境切换。开发时本地调试 OAuth 会跳转到生产地址，但登录后可以手动切回本地测试。
+#### 本地开发说明
+
+本地开发时 GitHub OAuth 无法使用（回调到生产地址），建议使用：
+- **邮箱密码登录**：注册测试账号
+- **魔法链接**：无密码登录
+
+如需本地测试 GitHub OAuth，可临时修改 GitHub App 的回调 URL 为本地地址，测试完再改回。
 
 ### 3.3 配置邮件模板（可选）
 
