@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { supabase } from '@/lib/supabase'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -64,16 +65,18 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   // 设置页面标题
   document.title = `${to.meta.title || 'YouMedHub'} - YouMedHub`
 
-  // TODO: 添加登录状态检查
-  // const { isAuthenticated } = useAuth()
-  // if (to.meta.requiresAuth && !isAuthenticated.value) {
-  //   next({ name: 'login', query: { redirect: to.fullPath } })
-  //   return
-  // }
+  // 检查登录状态
+  if (to.meta.requiresAuth) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      next({ name: 'login', query: { redirect: to.fullPath } })
+      return
+    }
+  }
 
   next()
 })

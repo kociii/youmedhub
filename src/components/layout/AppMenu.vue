@@ -1,7 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Home, Sparkles, FileText, Heart, Settings, LogIn, User } from 'lucide-vue-next'
+import { Home, Sparkles, FileText, Heart, Settings, LogIn, LogOut, User } from 'lucide-vue-next'
+import { useAuth } from '@/composables/useAuth'
+import { useToast } from '@/components/ui/toast'
+import AuthDialog from '@/components/AuthDialog.vue'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import logoUrl from '@/assets/logo.svg'
 
 defineProps<{
@@ -10,6 +22,10 @@ defineProps<{
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuth()
+const { toast } = useToast()
+
+const showAuthDialog = ref(false)
 
 // 主菜单
 const mainMenuItems = [
@@ -24,19 +40,38 @@ const bottomMenuItems = [
   { name: 'settings', label: '设置', icon: Settings, path: '/settings' },
 ]
 
-// 登录/个人中心
-const authMenuItem = computed(() => {
-  // TODO: 从 useAuth 获取登录状态
-  const isAuthenticated = false
-  return isAuthenticated
-    ? { name: 'profile', label: '个人中心', icon: User, path: '/profile' }
-    : { name: 'login', label: '登录', icon: LogIn, path: '/login' }
-})
-
 const activeMenu = computed(() => route.name as string)
 
 function navigate(path: string) {
   router.push(path)
+}
+
+function handleLoginClick() {
+  if (auth.isAuthenticated.value) {
+    router.push('/profile')
+  } else {
+    showAuthDialog.value = true
+  }
+}
+
+async function handleLogout() {
+  try {
+    await auth.signOut()
+    toast({
+      title: '已退出登录',
+    })
+    router.push('/')
+  } catch (e) {
+    toast({
+      title: '退出失败',
+      description: e instanceof Error ? e.message : '未知错误',
+      variant: 'destructive',
+    })
+  }
+}
+
+function getInitials(name: string): string {
+  return name.charAt(0).toUpperCase()
 }
 </script>
 
@@ -83,19 +118,61 @@ function navigate(path: string) {
         <span v-if="!collapsed" class="truncate">{{ item.label }}</span>
       </button>
 
-      <!-- 登录/个人中心 -->
-      <button
-        class="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
-        :class="
-          activeMenu === authMenuItem.name
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-        "
-        @click="navigate(authMenuItem.path)"
-      >
-        <component :is="authMenuItem.icon" class="h-5 w-5 shrink-0" />
-        <span v-if="!collapsed" class="truncate">{{ authMenuItem.label }}</span>
-      </button>
+      <!-- 登录/用户菜单 -->
+      <div class="mt-1">
+        <!-- 未登录：显示登录按钮 -->
+        <button
+          v-if="!auth.isAuthenticated.value"
+          class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
+          :class="
+            activeMenu === 'login'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          "
+          @click="handleLoginClick"
+        >
+          <LogIn class="h-5 w-5 shrink-0" />
+          <span v-if="!collapsed" class="truncate">登录</span>
+        </button>
+
+        <!-- 已登录：显示用户下拉菜单 -->
+        <DropdownMenu v-else>
+          <DropdownMenuTrigger as-child>
+            <button
+              class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+            >
+              <Avatar class="h-5 w-5">
+                <AvatarImage :src="auth.userAvatar.value" />
+                <AvatarFallback class="text-xs">
+                  {{ getInitials(auth.userName.value) }}
+                </AvatarFallback>
+              </Avatar>
+              <span v-if="!collapsed" class="truncate">{{ auth.userName.value }}</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" :side-offset="4">
+            <DropdownMenuLabel>
+              <div class="flex flex-col space-y-1">
+                <p class="text-sm font-medium">{{ auth.userName.value }}</p>
+                <p class="text-xs text-muted-foreground">{{ auth.userEmail.value }}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem @click="navigate('/profile')">
+              <User class="mr-2 h-4 w-4" />
+              个人中心
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem @click="handleLogout" class="text-destructive">
+              <LogOut class="mr-2 h-4 w-4" />
+              退出登录
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
+
+    <!-- 登录弹窗 -->
+    <AuthDialog v-model:open="showAuthDialog" />
   </div>
 </template>
