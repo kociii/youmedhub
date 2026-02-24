@@ -13,15 +13,34 @@ export interface VideoAnalysisOptions {
   prompt: string
   onChunk?: (chunk: string) => void
   onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
+  // 模型参数
+  temperature?: number
+  top_p?: number
+  frequency_penalty?: number
+  presence_penalty?: number
+  // 思考模式
+  enableThinking?: boolean
+  onReasoningChunk?: (chunk: string) => void
 }
 
 export async function analyzeVideo(options: VideoAnalysisOptions): Promise<string> {
-  const { apiKey, model, videoUrl, prompt, onChunk, onUsage } = options
+  const { apiKey, model, videoUrl, prompt, onChunk, onUsage, temperature, top_p, frequency_penalty, presence_penalty, enableThinking, onReasoningChunk } = options
 
   return streamChat({
     apiKey,
     model,
     messages: [
+      {
+        role: 'system',
+        content: `你是一位拥有丰富经验的短视频拆解专家及分镜导演。你需要具备敏锐的观察力，能够从成片中反向推导出拍摄时的镜头语言、光影布局和具体的实操技法。
+
+核心约束：
+1. 空值填充：若某个字段在当前镜头中没有内容，请务必输出符号「-」，严禁留空或使用"无/None"等文字
+2. 时间连续：上一行镜头的"结束时间"必须严格等于下一行镜头的"开始时间"，严禁出现时间断层
+3. 格式纯净：仅输出表格，不要包含任何多余的解释、总结、开场白或结束语
+
+请严格按照用户要求的 Markdown 表格格式输出。`,
+      },
       {
         role: 'user',
         content: [
@@ -32,6 +51,12 @@ export async function analyzeVideo(options: VideoAnalysisOptions): Promise<strin
     ],
     onChunk,
     onUsage,
+    temperature,
+    top_p,
+    frequency_penalty,
+    presence_penalty,
+    enableThinking,
+    onReasoningChunk,
   })
 }
 
@@ -43,10 +68,18 @@ export interface ImageAnalysisOptions {
   prompt: string
   onChunk?: (chunk: string) => void
   onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
+  // 模型参数
+  temperature?: number
+  top_p?: number
+  frequency_penalty?: number
+  presence_penalty?: number
+  // 思考模式
+  enableThinking?: boolean
+  onReasoningChunk?: (chunk: string) => void
 }
 
 export async function analyzeImage(options: ImageAnalysisOptions): Promise<string> {
-  const { apiKey, model, imageUrl, prompt, onChunk, onUsage } = options
+  const { apiKey, model, imageUrl, prompt, onChunk, onUsage, temperature, top_p, frequency_penalty, presence_penalty, enableThinking, onReasoningChunk } = options
 
   return streamChat({
     apiKey,
@@ -62,6 +95,12 @@ export async function analyzeImage(options: ImageAnalysisOptions): Promise<strin
     ],
     onChunk,
     onUsage,
+    temperature,
+    top_p,
+    frequency_penalty,
+    presence_penalty,
+    enableThinking,
+    onReasoningChunk,
   })
 }
 
@@ -72,10 +111,18 @@ export interface TextGenerationOptions {
   prompt: string
   onChunk?: (chunk: string) => void
   onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
+  // 模型参数
+  temperature?: number
+  top_p?: number
+  frequency_penalty?: number
+  presence_penalty?: number
+  // 思考模式
+  enableThinking?: boolean
+  onReasoningChunk?: (chunk: string) => void
 }
 
 export async function generateText(options: TextGenerationOptions): Promise<string> {
-  const { apiKey, model, prompt, onChunk, onUsage } = options
+  const { apiKey, model, prompt, onChunk, onUsage, temperature, top_p, frequency_penalty, presence_penalty, enableThinking, onReasoningChunk } = options
 
   return streamChat({
     apiKey,
@@ -85,6 +132,12 @@ export async function generateText(options: TextGenerationOptions): Promise<stri
     ],
     onChunk,
     onUsage,
+    temperature,
+    top_p,
+    frequency_penalty,
+    presence_penalty,
+    enableThinking,
+    onReasoningChunk,
   })
 }
 
@@ -93,7 +146,7 @@ export async function generateTextSync(options: Omit<TextGenerationOptions, 'onC
   content: string
   usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
 }> {
-  const { apiKey, model, prompt } = options
+  const { apiKey, model, prompt, temperature, top_p, frequency_penalty, presence_penalty } = options
 
   return chat({
     apiKey,
@@ -101,5 +154,9 @@ export async function generateTextSync(options: Omit<TextGenerationOptions, 'onC
     messages: [
       { role: 'user', content: prompt },
     ],
+    temperature,
+    top_p,
+    frequency_penalty,
+    presence_penalty,
   })
 }

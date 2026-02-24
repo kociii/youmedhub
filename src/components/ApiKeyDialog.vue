@@ -9,20 +9,17 @@ import {
 import { Input } from '@/components/ui/input'
 import { Settings } from 'lucide-vue-next'
 
-const { dashscopeApiKey, arkApiKey, setDashscopeApiKey, setArkApiKey } = useVideoAnalysis()
+const { dashscopeApiKey, setDashscopeApiKey } = useVideoAnalysis()
 const open = ref(false)
 const inputDashscopeKey = ref(dashscopeApiKey.value)
-const inputArkKey = ref(arkApiKey.value)
 
 function handleSave() {
   setDashscopeApiKey(inputDashscopeKey.value.trim())
-  setArkApiKey(inputArkKey.value.trim())
   open.value = false
 }
 
 function handleOpen() {
   inputDashscopeKey.value = dashscopeApiKey.value
-  inputArkKey.value = arkApiKey.value
 }
 </script>
 
@@ -48,14 +45,6 @@ function handleOpen() {
             v-model="inputDashscopeKey"
             type="password"
             placeholder="sk-xxxxxxxxxxxxxxxxxxxx"
-          />
-        </div>
-        <div class="space-y-2">
-          <label class="text-sm font-medium">火山引擎 ARK API Key</label>
-          <Input
-            v-model="inputArkKey"
-            type="password"
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
           />
         </div>
       </div>

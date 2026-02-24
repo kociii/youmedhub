@@ -1,151 +1,109 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
-import { analyzeVideo } from '@/api/videoAnalysis'
-import { MODELS_BY_PROVIDER } from '@/config/models'
+import { analyzeVideo, type AIModel } from '@/api/videoAnalysis'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Loader2, Play } from 'lucide-vue-next'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { Loader2, Play, Brain } from 'lucide-vue-next'
 
-const {
-  videoUrl,
-  analysisStatus,
-  markdownContent,
-  scriptItems,
-  tokenUsage,
-  selectedModel,
-  currentApiKey,
-  hasVideo,
-  isAnalyzing,
-  viewMode,
-  setSelectedModel,
-} = useVideoAnalysis()
+// 获取全局状态
+const va = useVideoAnalysis()
+
+// 本地计算属性，用于 template 绑定
+const enableThinkingModel = computed({
+  get: () => va.enableThinking.value,
+  set: (val: boolean) => { va.enableThinking.value = val }
+})
+
+const isAnalyzing = computed(() => va.isAnalyzing.value)
+const hasVideo = computed(() => va.hasVideo.value)
+const hasApiKey = computed(() => !!va.currentApiKey.value)
+const isError = computed(() => va.analysisStatus.value === 'error')
 
 const errorMessage = ref('')
 
-// 默认选择第一个模型
-const defaultModelId = ref(MODELS_BY_PROVIDER.aliyun[0].id)
-
-// 当前选中的模型 ID
-const currentModelId = computed({
-  get: () => selectedModel.value?.id || defaultModelId.value,
-  set: (id: string) => {
-    // 查找模型配置
-    const allModels = [...MODELS_BY_PROVIDER.aliyun, ...MODELS_BY_PROVIDER.volcengine]
-    const model = allModels.find(m => m.id === id)
-    if (model) {
-      setSelectedModel(model)
-      defaultModelId.value = id
-    }
-  },
-})
-
-// 获取当前模型的 API Key 提示
-const apiKeyPlaceholder = computed(() => {
-  const model = selectedModel.value
-  if (!model) return '请先选择模型'
-  return model.provider === 'aliyun'
-    ? '需要阿里百炼 API Key'
-    : '需要火山引擎 API Key'
-})
-
 async function startAnalysis() {
-  if (!selectedModel.value) {
-    errorMessage.value = '请先选择模型'
+  if (!va.currentApiKey.value) {
+    errorMessage.value = '请先配置阿里百炼 API Key'
     return
   }
 
-  if (!currentApiKey.value) {
-    errorMessage.value = apiKeyPlaceholder.value
-    return
-  }
-
-  analysisStatus.value = 'analyzing'
-  markdownContent.value = ''
-  scriptItems.value = []
-  tokenUsage.value = null
+  va.analysisStatus.value = 'analyzing'
+  va.markdownContent.value = ''
+  va.scriptItems.value = []
+  va.tokenUsage.value = null
   errorMessage.value = ''
-  viewMode.value = 'markdown'
+  va.thinkingContent.value = ''
+  va.isThinking.value = false
+  va.viewMode.value = 'markdown'
 
   try {
     const result = await analyzeVideo(
-      videoUrl.value,
-      currentApiKey.value,
-      selectedModel.value.id as any,
+      va.videoUrl.value,
+      va.currentApiKey.value,
+      (va.selectedModel.value?.id || 'qwen3.5-plus') as AIModel,
       undefined,
       undefined,
       (chunk) => {
-        markdownContent.value += chunk
+        va.markdownContent.value += chunk
       },
       (usage) => {
-        tokenUsage.value = usage
+        va.tokenUsage.value = usage
+      },
+      {
+        temperature: va.analysisParams.value.temperature,
+        top_p: va.analysisParams.value.top_p,
+        frequency_penalty: va.analysisParams.value.frequency_penalty,
+        presence_penalty: va.analysisParams.value.presence_penalty,
+        enableThinking: va.enableThinking.value,
+      },
+      (chunk) => {
+        va.thinkingContent.value += chunk
+        va.isThinking.value = true
       },
     )
-    scriptItems.value = result.rep
-    analysisStatus.value = 'success'
-    viewMode.value = 'table'
+    va.scriptItems.value = result.rep
+    va.analysisStatus.value = 'success'
+    va.isThinking.value = false
+    va.viewMode.value = 'table'
   } catch (e) {
     errorMessage.value = e instanceof Error ? e.message : '分析失败，请重试'
     console.error('分析失败:', e)
-    analysisStatus.value = 'error'
+    va.analysisStatus.value = 'error'
+    va.isThinking.value = false
   }
 }
 </script>
 
 <template>
   <div class="space-y-4">
-    <!-- 模型选择 -->
-    <div class="space-y-2">
-      <label class="text-sm font-medium">选择模型</label>
-      <Select v-model="currentModelId" :disabled="isAnalyzing">
-        <SelectTrigger>
-          <SelectValue placeholder="选择模型" />
-        </SelectTrigger>
-        <SelectContent>
-          <!-- 阿里百炼组 -->
-          <SelectGroup>
-            <SelectLabel>阿里百炼</SelectLabel>
-            <SelectItem
-              v-for="model in MODELS_BY_PROVIDER.aliyun"
-              :key="model.id"
-              :value="model.id"
-            >
-              {{ model.name }}
-            </SelectItem>
-          </SelectGroup>
-          <!-- 火山引擎组 -->
-          <SelectGroup>
-            <SelectLabel>火山引擎</SelectLabel>
-            <SelectItem
-              v-for="model in MODELS_BY_PROVIDER.volcengine"
-              :key="model.id"
-              :value="model.id"
-            >
-              {{ model.name }}
-            </SelectItem>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+    <!-- 思考模式开关 -->
+    <div class="flex items-center justify-between rounded-lg border p-3">
+      <div class="flex items-center gap-2">
+        <Brain class="h-4 w-4 text-muted-foreground" />
+        <div>
+          <Label for="thinking-mode" class="text-sm font-medium cursor-pointer">思考模式</Label>
+          <p class="text-xs text-muted-foreground">启用后模型会先思考再回答</p>
+        </div>
+      </div>
+      <Switch
+        id="thinking-mode"
+        v-model:checked="enableThinkingModel"
+        :disabled="isAnalyzing"
+      />
     </div>
 
     <!-- API Key 状态提示 -->
-    <div v-if="!currentApiKey" class="rounded-md bg-muted p-3 text-xs text-muted-foreground">
-      {{ apiKeyPlaceholder }}
+    <div v-if="!hasApiKey" class="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+      请先配置阿里百炼 API Key
     </div>
 
     <!-- 开始分析按钮 -->
     <Button
       variant="default"
       class="w-full"
-      :disabled="!hasVideo || isAnalyzing || !currentApiKey"
+      :disabled="!hasVideo || isAnalyzing || !hasApiKey"
       @click="startAnalysis"
     >
       <Loader2 v-if="isAnalyzing" class="mr-2 h-4 w-4 animate-spin" />
@@ -154,7 +112,7 @@ async function startAnalysis() {
     </Button>
 
     <!-- 错误提示 -->
-    <div v-if="analysisStatus === 'error'" class="rounded-md bg-destructive/10 p-3 text-xs text-destructive">
+    <div v-if="isError" class="rounded-md bg-destructive/10 p-3 text-xs text-destructive">
       {{ errorMessage }}
     </div>
   </div>

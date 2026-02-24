@@ -44,7 +44,7 @@ const showConfigPanel = computed(() => {
     <!-- 右侧：内容区 -->
     <main class="flex flex-1 flex-col overflow-hidden">
       <!-- 内容区主体 -->
-      <div class="flex-1 overflow-y-auto p-6">
+      <div class="flex-1 overflow-y-auto">
         <slot name="content">
           <div class="flex h-full items-center justify-center text-muted-foreground">
             选择左侧菜单开始

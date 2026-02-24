@@ -3,6 +3,7 @@ import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 import ResultToolbar from '@/components/ResultToolbar.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
 import ScriptTable from '@/components/ScriptTable.vue'
+import ThinkingPanel from '@/components/ThinkingPanel.vue'
 
 const { viewMode, hasResult } = useVideoAnalysis()
 </script>
@@ -14,6 +15,9 @@ const { viewMode, hasResult } = useVideoAnalysis()
 
     <!-- 内容区 -->
     <div class="flex-1 overflow-auto p-4">
+      <!-- 思考面板 -->
+      <ThinkingPanel class="mb-4" />
+
       <template v-if="hasResult">
         <MarkdownView v-if="viewMode === 'markdown'" />
         <ScriptTable v-else />

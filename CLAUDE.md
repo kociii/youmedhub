@@ -4,18 +4,23 @@
 
 ## 技术栈
 
-- **Vue 3.5** - 使用 Composition API 和 `<script setup>` 语法
-- **Vite 7.3** - 构建工具和开发服务器
-- **TypeScript 5.7** - 启用严格模式
-- **Tailwind CSS 3.4** - 使用 CSS 变量主题系统
-- **shadcn-vue** - 基于 radix-vue 的组件库（New York 风格）
+- **Vue 3.5** - Composition API + `<script setup>`
+- **Vite 7.3** - 构建工具
+- **TypeScript 5.7** - 严格模式
+- **Tailwind CSS 3.4** - CSS 变量主题
+- **shadcn-vue** - New York 风格组件库
+- **Vue Router 4.6** - 多页面路由
 
 ### 业务依赖
 
-- `ali-oss` - 阿里云 OSS 浏览器直传
-- `markstream-vue` - Markdown 流式渲染（AI 输出实时展示）
-- `xlsx` - Excel 导出
-- `lucide-vue-next` - 图标库
+| 依赖 | 用途 |
+|------|------|
+| `@supabase/supabase-js` | 用户认证和数据存储 |
+| `@vueuse/core` | Vue 组合式工具函数 |
+| `ali-oss` | 阿里云 OSS 浏览器直传 |
+| `markstream-vue` | Markdown 流式渲染 |
+| `xlsx` | Excel 导出 |
+| `lucide-vue-next` | 图标库 |
 
 ## 开发命令
 
@@ -29,132 +34,143 @@ npm run preview  # 预览生产构建
 
 ### 路径别名
 
-- `@/` 映射到 `src/` 目录（在 vite.config.ts 和 tsconfig.json 中配置）
-- shadcn-vue 组件别名：`@/components`、`@/lib/utils`、`@/components/ui`
+- `@/` → `src/`（vite.config.ts + tsconfig.json）
 
 ### 目录结构
 
 ```
 src/
 ├── api/
-│   ├── temporaryFile.ts       # 阿里云 OSS 上传（STS 临时凭证 / 本地直传）
-│   └── videoAnalysis.ts       # 百炼 API 调用（流式 SSE + Markdown 表格解析）
-├── assets/                    # Logo 等静态资源
+│   ├── analysis.ts              # 分析 API 统一入口
+│   ├── providers/
+│   │   └── aliyun.ts            # 阿里百炼 API
+│   ├── temporaryFile.ts         # OSS 上传
+│   └── videoAnalysis.ts         # 视频分析（SSE 流式）
 ├── components/
-│   ├── ui/                    # shadcn-vue 组件（button/card/tabs/table/dialog/input/progress/badge/separator）
-│   ├── ApiKeyDialog.vue       # F5 API Key 配置弹窗
-│   ├── VideoUploader.vue      # F1 拖拽/点击上传
-│   ├── VideoPreview.vue       # F1 视频预览播放器
-│   ├── AnalysisControl.vue    # F2 模型选择 + 分析按钮
-│   ├── LeftPanel.vue          # 左侧面板容器
-│   ├── RightPanel.vue         # 右侧主区域容器
-│   ├── ResultToolbar.vue      # F3 模式切换 + Token 统计 + F4 导出按钮
-│   ├── MarkdownView.vue       # F3 Markdown 流式渲染（markstream-vue）
-│   ├── ScriptTable.vue        # F3 分镜脚本表格（9 列 + 色彩标签 + computed 预处理）
-│   └── VideoSegmentPlayer.vue # F3 视频片段 hover 播放器（等比缩放 + 静音）
+│   ├── layout/                  # 布局组件（v0.2.2 新增）
+│   │   ├── AppLayout.vue
+│   │   ├── AppMenu.vue
+│   │   └── UserBar.vue
+│   ├── ui/                      # shadcn-vue 组件
+│   ├── ApiKeyDialog.vue         # API Key 配置
+│   ├── VideoUploader.vue        # 视频上传
+│   ├── VideoPreview.vue         # 视频预览
+│   ├── AnalysisControl.vue      # 分析控制
+│   ├── LeftPanel.vue            # 左侧配置面板
+│   ├── RightPanel.vue           # 右侧结果面板
+│   ├── ResultToolbar.vue        # 结果工具栏
+│   ├── MarkdownView.vue         # Markdown 渲染
+│   ├── ScriptTable.vue          # 分镜表格
+│   └── VideoSegmentPlayer.vue   # 视频片段播放
 ├── composables/
-│   └── useVideoAnalysis.ts    # 全局状态管理（ref 单例模式，无需 Pinia）
+│   └── useVideoAnalysis.ts      # 全局状态（ref 单例）
+├── config/
+│   └── models.ts                # 模型配置（v0.2.2 新增）
 ├── lib/
-│   └── utils.ts               # cn() 类名合并函数
+│   ├── utils.ts                 # cn() 类名合并
+│   ├── supabase.ts              # Supabase 客户端
+│   └── openai-client.ts         # OpenAI 兼容客户端
 ├── prompts/
-│   └── videoAnalysis.ts       # AI 提示词（分镜拍摄脚本分析）
+│   └── videoAnalysis.ts         # AI 提示词
+├── router/
+│   └── index.ts                 # 路由配置（v0.2.2 新增）
 ├── types/
-│   └── video.ts               # VideoScriptItem / AnalysisStatus / TokenUsage 类型
+│   └── video.ts                 # VideoScriptItem 等类型
 ├── utils/
-│   ├── exportExcel.ts         # Excel 导出
-│   └── videoCapture.ts        # 时间解析（parseTimeToSeconds）
-├── App.vue                    # 根组件（顶部栏 + 左右分栏布局）
-├── main.ts                    # 应用入口
-├── env.d.ts                   # 环境变量类型声明
-└── style.css                  # Tailwind 指令 + CSS 变量主题
+│   ├── exportExcel.ts           # Excel 导出
+│   └── videoCapture.ts          # 时间解析
+├── views/                       # 页面视图（v0.2.2 新增）
+│   ├── HomePage.vue             # 首页
+│   ├── AnalyzePage.vue          # 视频分析
+│   ├── CreatePage.vue           # 脚本生成
+│   ├── FavoritesPage.vue        # 收藏
+│   ├── LoginPage.vue            # 登录
+│   ├── ProfilePage.vue          # 个人中心
+│   └── SettingsPage.vue         # 设置
+├── App.vue
+├── main.ts
+├── env.d.ts
+└── style.css
 api/
-└── oss-sts.ts                 # Vercel Serverless Function（STS 临时凭证）
+└── oss-sts.ts                   # Vercel Serverless（STS 凭证）
 ```
+
+### 路由架构
+
+使用 Vue Router 实现多页面，支持嵌套路由：
+
+| 路径 | 页面 | 需登录 |
+|------|------|--------|
+| `/` | HomePage | 否 |
+| `/analyze` | AnalyzePage + LeftPanel | 否 |
+| `/create` | CreatePage + LeftPanel | 否 |
+| `/favorites` | FavoritesPage | 是 |
+| `/settings` | SettingsPage | 否 |
+| `/profile` | ProfilePage | 是 |
+| `/login` | LoginPage | 否 |
 
 ### 状态管理
 
-使用 `src/composables/useVideoAnalysis.ts` 管理全局状态，基于 Vue 3 模块级 `ref` + `computed` 单例模式（状态和计算属性均定义在模块顶层，函数仅返回引用）：
+`useVideoAnalysis.ts` 模块级 ref + computed 单例：
 
-- `videoFile` / `videoUrl` / `uploadProgress` - 视频上传状态
-- `analysisStatus` / `markdownContent` / `scriptItems` / `tokenUsage` - AI 分析状态
-- `viewMode` - 展示模式切换（markdown / table）
-- `apiKey` - API Key（localStorage 持久化）
+- `videoFile` / `videoUrl` / `uploadProgress` - 上传状态
+- `analysisStatus` / `markdownContent` / `scriptItems` / `tokenUsage` - 分析状态
+- `viewMode` - 展示模式（markdown/table）
+- 状态定义在模块顶层，函数仅返回引用
 
-### 数据类型
+### AI 提供商架构
 
-`VideoScriptItem` 包含 11 个字段，与 AI 提示词输出格式严格对应：
-序号、景别、运镜、画面内容、拍摄指导（shootingGuide）、画面文案/花字、口播/台词、音效/BGM、开始时间、结束时间、时长
+使用阿里百炼（DashScope）API：
+
+- `src/api/providers/aliyun.ts` - 阿里百炼 API 封装
+- `src/config/models.ts` - 模型配置（仅 `qwen3.5-plus`）
 
 ### 环境变量
 
-- 前端变量使用 `VITE_` 前缀，通过 `import.meta.env` 读取
-- 后端变量（Vercel Serverless）通过 `process.env` 读取
-- 本地开发：`.env` 文件（已 gitignore）
-- 生产环境：Vercel 项目设置中配置
-- 模板文件：`.env.example`
+**前端（VITE_ 前缀）**：
 
-### 主题系统
+- `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` - Supabase（必须）
+- `VITE_ALIYUN_*` - 阿里云 OSS
+- `VITE_DASHSCOPE_API_KEY` - 阿里百炼（可选，可在界面配置）
 
-- 主题变量定义在 `src/style.css` 的 `:root` 和 `.dark` 中
-- 使用 HSL 颜色值（如 `--primary: 0 0% 9%`）
-- Tailwind 配置在 `tailwind.config.js` 中扩展了主题颜色
+**后端（Vercel）**：
 
-### shadcn-vue 集成
-
-配置文件：`components.json`
-
-- 风格：New York
-- 基础颜色：neutral
-- 使用 CSS 变量
-- 组件通过 CLI 添加：`npx shadcn-vue@latest add <component>`
+- `ALIYUN_*` - STS 临时凭证生成
 
 ## 开发规范
 
-- 使用 Composition API 和 `<script setup lang="ts">` 语法
-- 组件使用 TypeScript
-- 样式使用 Tailwind CSS 工具类
-- 使用 `cn()` 函数合并条件类名
-- 部署目标：Vercel（`api/` 目录自动识别为 Serverless Functions）
+- Composition API + `<script setup lang="ts">`
+- Tailwind CSS 工具类 + `cn()` 合并类名
+- 部署目标：Vercel（`api/` → Serverless Functions）
 
-## v0.2.0 审查修复记录
+## 已知限制
 
-以下问题已在代码审查中修复：
+- **SSE 流解析**：已实现 buffer 机制，修改时需保留
+- **全局状态单例**：新增状态需定义在模块顶层
+- **VideoSegmentPlayer**：大量行数（50+）时考虑虚拟滚动
 
-### 已修复
+## v0.2.2 审查修复记录
 
-1. **模型名称错误**：`AnalysisControl.vue` 中 `'qwen-vl-flash' as any` → `'qwen3-vl-flash'`，与 `AIModel` 类型定义一致
-2. **SSE 流截断**：`videoAnalysis.ts` 中 SSE 解析增加 buffer 机制，防止跨 chunk 数据丢失
-3. **computed 重复创建**：`useVideoAnalysis.ts` 中 `hasVideo`/`hasResult`/`isAnalyzing` 提升到模块顶层
-4. **DEBUG 日志清理**：`videoAnalysis.ts` 中移除所有 `[DEBUG]` console.log
-5. **死代码清理**：删除 `localCache.ts`（未使用）；`videoCapture.ts` 精简为仅保留 `parseTimeToSeconds`
-6. **时间解析歧义**：`parseTimeToSeconds` 三段式统一按 HH:MM:SS 处理，移除 MM:SS:FF 歧义分支
-7. **VideoSegmentPlayer 懒加载**：改为首次点击才创建 `<video>` 元素，避免表格行数多时同时加载大量视频
-8. **alert() 移除**：`AnalysisControl.vue` 改为内联错误提示（`errorMessage` ref）
-9. **catch 类型安全**：`catch (e: any)` → `catch (e)` + `instanceof Error` 类型守卫
-10. **文件格式校验统一**：`temporaryFile.ts` 的 `validateVideoFile` 与 UI 一致，仅允许 mp4/mov
-11. **exportExcel 参数类型**：移除不必要的 `undefined` 联合类型
+### 新增功能
 
-### 已知限制与后续注意事项
-
-- **AI 模型名称**：当前支持 `qwen3-vl-flash` 和 `qwen3-vl-plus`，通过 `AIModel` 类型约束，`AnalysisControl.vue` 中使用 `<select>` 绑定 `ref<AIModel>`
-- **SSE 流解析**：已实现 buffer 机制，但如果 API 返回非标准 SSE 格式仍可能出问题，修改时需保留 buffer 逻辑
-- **全局状态单例**：`useVideoAnalysis` 的 ref/computed 定义在模块顶层，新增状态或计算属性时也应放在模块顶层，不要放在函数内部
-- **VideoSegmentPlayer**：当前每个播放器直接渲染 `<video>` 元素（preload=metadata），hover 播放/暂停。如果未来表格行数非常多（50+），可考虑虚拟滚动或共享单个 video 元素
-- **OSS 客户端配置**：`temporaryFile.ts` 中 `clientConfig` 仍使用 `any` 类型，后续可替换为 `ali-oss` 提供的类型
-- **主 chunk 体积**：构建产物 `index.js` 约 1.5MB（gzip 477KB），主要来自 `ali-oss` 和 `markstream-vue`，后续可通过 `manualChunks` 拆分或动态 import 优化
+1. **多页面路由**：Vue Router 实现 7 个页面
+2. **AI 分析**：阿里百炼 qwen3.5-plus 模型
+3. **Supabase 集成**：用户认证系统
+4. **思考模式**：支持 enable_thinking 参数
+5. **布局组件**：AppLayout、AppMenu、UserBar
 
 ## v0.2.1 审查修复记录
 
-### 已修复
+1. 分析控制精简、Token 信息移至 ResultToolbar
+2. 分镜表格 12 列→9 列（景别+运镜、时间合并）
+3. 视频预览 hover 播放、等比缩放
+4. viewMode 自动切换、`<br>` 转换行
+5. 模型选择下拉框、表头居中
 
-1. **分析控制精简**：`AnalysisControl.vue` 移除 Card 包裹和 Token Badge，仅保留模型选择 + 按钮 + 错误提示
-2. **Token 信息移位**：Token 统计从 `AnalysisControl.vue` 移至 `ResultToolbar.vue`
-3. **分镜表格列合并**：景别+运镜合并为 1 列（色彩 Badge）；开始+结束+时长合并为 1 列（Clock 图标）；12 列→9 列
-4. **视频预览 hover 播放**：移除点击激活逻辑，改为 mouseenter/mouseleave 自动播放/暂停，添加 muted 属性
-5. **视频等比缩放**：`h-20 w-32 object-cover` → `max-h-[260px] w-full object-contain`
-6. **viewMode 自动切换**：开始分析时 `viewMode='markdown'`，完成后 `viewMode='table'`
-7. **`<br>` 转换行**：`ScriptTable.vue` 使用 computed 预处理文本字段中的 `<br>` 标签
-8. **video.play() Promise**：`VideoSegmentPlayer.vue` 添加 `.catch(() => {})` 防止 unhandled rejection
-9. **模型选择**：新增 `<select>` 下拉框，支持 qwen3-vl-flash / qwen3-vl-plus，绑定 `ref<AIModel>` 类型
-10. **表头字号缩小**：所有 TableHead 添加 `text-xs`
-11. **列居中对齐**：序号、景别/运镜、时间、视频预览列居中
+## v0.2.0 审查修复记录
+
+1. 模型名称修正、SSE buffer 机制
+2. computed 提升到模块顶层
+3. DEBUG 日志清理、死代码删除
+4. 时间解析歧义修复、懒加载优化
+5. catch 类型安全、文件格式校验统一

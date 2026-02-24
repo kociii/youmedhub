@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   // Supabase
   readonly VITE_SUPABASE_URL: string
   readonly VITE_SUPABASE_ANON_KEY: string
+  // AI Model API Keys (可选)
+  readonly VITE_DASHSCOPE_API_KEY: string
 }
 
 interface ImportMeta {

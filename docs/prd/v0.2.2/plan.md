@@ -35,11 +35,13 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 
 ---
 
-## v0.2.2-alpha：基础架构
+## v0.2.2-alpha：基础架构 ✅ 已完成
 
 ### 阶段目标
 
 完成三栏布局、OpenAI SDK 兼容层、模型接入。
+
+> ✅ **2026-02-24 完成** - 所有验收标准通过，两个渠道 API 调用验证成功。
 
 ### 任务清单
 
@@ -73,30 +75,43 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 
 - [x] 创建 `src/lib/openai-client.ts`
 - [x] 创建 `src/api/providers/aliyun.ts`
-- [x] 创建 `src/api/providers/volcengine.ts`
+- [x] ~~创建 `src/api/providers/volcengine.ts`~~ (已删除)
 - [x] 创建 `src/api/analysis.ts`（统一入口）
 - [x] 重构现有 `videoAnalysis.ts` 使用新接口
 
-#### 5. 模型选择 UI ✅
+#### 5. 模型配置 ✅
 
-- [x] 更新 `AnalysisControl.vue` 支持分组下拉
-- [x] 实现 API Key 双渠道配置
 - [x] 创建 `src/config/models.ts` 硬编码模型配置
-- [x] 移除旧模型（仅保留 Qwen3.5 + Doubao）
+- [x] 仅保留 `qwen3.5-plus` 模型
+- [x] 删除火山引擎相关代码
 
-#### 6. 页面迁移 ✅
+#### 6. 思考模式 ✅
+
+- [x] 添加 `enableThinking` 状态（`useVideoAnalysis.ts`）
+- [x] 实现思考模式开关 UI（`AnalysisControl.vue`）
+- [x] 实现 `extra_body.enable_thinking` 参数传递
+- [x] 实现思考内容流式解析（`reasoning_content`）
+- [x] 创建思考内容展示组件（`ThinkingPanel.vue`）
+
+#### 7. 提示词优化 ✅
+
+- [x] 添加系统提示词（角色定义 + 核心约束）
+- [x] 优化消息结构（system + user）
+
+#### 8. 页面迁移 ✅
 
 - [x] 迁移现有功能到 `AnalyzePage.vue`
 - [x] 完善 `HomePage.vue`（欢迎页）
 - [x] 完善 `SettingsPage.vue`（API Key 配置）
 
-### 验收标准
+### 验收标准 ✅
 
 - [x] 三栏布局正常显示
 - [x] 菜单切换正常
-- [ ] Qwen3.5 模型调用正常
-- [ ] Doubao 模型调用正常
-- [ ] 流式输出正常
+- [x] Qwen3.5 模型调用正常
+- [x] 流式输出正常
+- [x] 思考模式参数传递正确（`extra_body.enable_thinking`）
+- [x] 系统提示词优化完成
 
 ---
 
@@ -104,11 +119,11 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 
 ### 阶段目标
 
-完成 Supabase 集成、用户认证、脚本收藏。
+完成用户认证、脚本收藏。
 
 ### 前置依赖
 
-> 必须先完成「前置准备：Supabase 配置」中的所有任务。
+> Supabase 配置已完成。
 
 ### 任务清单
 
@@ -127,9 +142,9 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 - [ ] 实现退出登录
 - [ ] 实现状态持久化
 
-#### 3. 登录/注册页面
+#### 3. 登录/注册弹窗
 
-- [ ] 创建 `LoginPage.vue`
+- [ ] 创建 `AuthDialog.vue` 弹窗组件
 - [ ] 实现登录表单
 - [ ] 实现注册表单
 - [ ] 实现 GitHub 登录按钮
@@ -141,23 +156,23 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 - [ ] 实现重定向逻辑
 - [ ] 保护需登录的页面
 
-#### 5. 用户状态栏
+#### 5. AppMenu 用户状态
 
-- [ ] 未登录显示登录/注册按钮
-- [ ] 已登录显示头像和下拉菜单
+- [ ] 未登录显示登录按钮（点击弹出登录弹窗）
+- [ ] 已登录显示个人中心入口
 - [ ] 实现退出登录
 
 #### 6. 收藏功能
 
 - [ ] 创建 `src/composables/useFavorites.ts`
 - [ ] 实现收藏 CRUD 操作
-- [ ] 创建收藏弹窗组件
+- [ ] 创建收藏确认弹窗
 - [ ] 更新 ResultToolbar 添加收藏按钮
 - [ ] 实现未登录提示
 
 #### 7. 收藏列表页面
 
-- [ ] 创建 `FavoritesPage.vue`
+- [ ] 完善 `FavoritesPage.vue`
 - [ ] 实现列表展示
 - [ ] 实现搜索/筛选
 - [ ] 实现加载脚本到编辑器
@@ -165,7 +180,7 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 
 #### 8. 个人中心页面
 
-- [ ] 创建 `ProfilePage.vue`
+- [ ] 完善 `ProfilePage.vue`
 - [ ] 实现个人信息展示
 - [ ] 实现昵称修改
 - [ ] 实现最近收藏展示
@@ -298,7 +313,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
 | 风险/依赖 | 影响 | 缓解措施 |
 |----------|------|----------|
 | Supabase 服务稳定性 | 认证功能不可用 | 监控状态页，准备降级方案 |
-| 火山引擎 API 变更 | Doubao 调用失败 | 使用 OpenAI 兼容格式降低耦合 |
+| 阿里百炼 API 变更 | 模型调用失败 | 使用 OpenAI 兼容格式降低耦合 |
 | OAuth 配置错误 | 第三方登录失败 | 提供邮箱登录作为备选 |
 | RLS 配置错误 | 数据泄露风险 | 开发环境充分测试 |
 

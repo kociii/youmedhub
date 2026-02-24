@@ -4,15 +4,13 @@ import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-const { dashscopeApiKey, arkApiKey, setDashscopeApiKey, setArkApiKey } = useVideoAnalysis()
+const { dashscopeApiKey, setDashscopeApiKey } = useVideoAnalysis()
 
 const dashscopeInput = ref(dashscopeApiKey.value)
-const arkInput = ref(arkApiKey.value)
 const saved = ref(false)
 
 function handleSave() {
   setDashscopeApiKey(dashscopeInput.value.trim())
-  setArkApiKey(arkInput.value.trim())
   saved.value = true
   setTimeout(() => {
     saved.value = false
@@ -44,26 +42,6 @@ function handleSave() {
             class="text-primary hover:underline"
           >
             dashscope.console.aliyun.com
-          </a>
-        </p>
-      </div>
-
-      <!-- 火山引擎 ARK API Key -->
-      <div class="space-y-2">
-        <label class="text-sm font-medium">火山引擎 ARK API Key</label>
-        <Input
-          v-model="arkInput"
-          type="password"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        />
-        <p class="text-xs text-muted-foreground">
-          获取地址：
-          <a
-            href="https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey"
-            target="_blank"
-            class="text-primary hover:underline"
-          >
-            console.volcengine.com
           </a>
         </p>
       </div>
