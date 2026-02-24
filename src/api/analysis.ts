@@ -4,6 +4,8 @@
  */
 
 import type { ModelConfig } from '@/lib/openai-client'
+export type { ModelConfig }
+
 import * as aliyun from './providers/aliyun'
 import * as volcengine from './providers/volcengine'
 

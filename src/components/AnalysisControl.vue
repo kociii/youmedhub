@@ -1,27 +1,73 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 import { analyzeVideo } from '@/api/videoAnalysis'
-import type { AIModel } from '@/api/videoAnalysis'
+import { MODELS_BY_PROVIDER } from '@/api/analysis'
 import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
 import { Loader2, Play } from 'lucide-vue-next'
 
 const {
-  videoUrl, apiKey, analysisStatus, markdownContent,
-  scriptItems, tokenUsage, hasVideo, isAnalyzing, viewMode,
+  videoUrl,
+  analysisStatus,
+  markdownContent,
+  scriptItems,
+  tokenUsage,
+  selectedModel,
+  currentApiKey,
+  hasVideo,
+  isAnalyzing,
+  viewMode,
+  setSelectedModel,
 } = useVideoAnalysis()
 
-const selectedModel = ref<AIModel>('qwen3-vl-flash')
 const errorMessage = ref('')
 
+// 默认选择第一个模型
+const defaultModelId = ref(MODELS_BY_PROVIDER.aliyun[0].id)
+
+// 当前选中的模型 ID
+const currentModelId = computed({
+  get: () => selectedModel.value?.id || defaultModelId.value,
+  set: (id: string) => {
+    // 查找模型配置
+    const allModels = [...MODELS_BY_PROVIDER.aliyun, ...MODELS_BY_PROVIDER.volcengine]
+    const model = allModels.find(m => m.id === id)
+    if (model) {
+      setSelectedModel(model)
+      defaultModelId.value = id
+    }
+  },
+})
+
+// 获取当前模型的 API Key 提示
+const apiKeyPlaceholder = computed(() => {
+  const model = selectedModel.value
+  if (!model) return '请先选择模型'
+  return model.provider === 'aliyun'
+    ? '需要阿里百炼 API Key'
+    : '需要火山引擎 API Key'
+})
+
 async function startAnalysis() {
+  if (!selectedModel.value) {
+    errorMessage.value = '请先选择模型'
+    return
+  }
+
+  if (!currentApiKey.value) {
+    errorMessage.value = apiKeyPlaceholder.value
+    return
+  }
+
   analysisStatus.value = 'analyzing'
   markdownContent.value = ''
   scriptItems.value = []
@@ -32,8 +78,8 @@ async function startAnalysis() {
   try {
     const result = await analyzeVideo(
       videoUrl.value,
-      apiKey.value,
-      selectedModel.value,
+      currentApiKey.value,
+      selectedModel.value.id as any,
       undefined,
       undefined,
       (chunk) => {
@@ -55,21 +101,51 @@ async function startAnalysis() {
 </script>
 
 <template>
-  <div class="space-y-2">
-    <Select v-model="selectedModel" :disabled="isAnalyzing">
-      <SelectTrigger>
-        <SelectValue placeholder="选择模型" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="qwen3-vl-flash">qwen3-vl-flash</SelectItem>
-        <SelectItem value="qwen3-vl-plus">qwen3-vl-plus</SelectItem>
-      </SelectContent>
-    </Select>
+  <div class="space-y-4">
+    <!-- 模型选择 -->
+    <div class="space-y-2">
+      <label class="text-sm font-medium">选择模型</label>
+      <Select v-model="currentModelId" :disabled="isAnalyzing">
+        <SelectTrigger>
+          <SelectValue placeholder="选择模型" />
+        </SelectTrigger>
+        <SelectContent>
+          <!-- 阿里百炼组 -->
+          <SelectGroup>
+            <SelectLabel>阿里百炼</SelectLabel>
+            <SelectItem
+              v-for="model in MODELS_BY_PROVIDER.aliyun"
+              :key="model.id"
+              :value="model.id"
+            >
+              {{ model.name }}
+            </SelectItem>
+          </SelectGroup>
+          <!-- 火山引擎组 -->
+          <SelectGroup>
+            <SelectLabel>火山引擎</SelectLabel>
+            <SelectItem
+              v-for="model in MODELS_BY_PROVIDER.volcengine"
+              :key="model.id"
+              :value="model.id"
+            >
+              {{ model.name }}
+            </SelectItem>
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </div>
 
+    <!-- API Key 状态提示 -->
+    <div v-if="!currentApiKey" class="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+      {{ apiKeyPlaceholder }}
+    </div>
+
+    <!-- 开始分析按钮 -->
     <Button
-      variant="outline"
+      variant="default"
       class="w-full"
-      :disabled="!hasVideo || isAnalyzing || !apiKey"
+      :disabled="!hasVideo || isAnalyzing || !currentApiKey"
       @click="startAnalysis"
     >
       <Loader2 v-if="isAnalyzing" class="mr-2 h-4 w-4 animate-spin" />
@@ -77,7 +153,8 @@ async function startAnalysis() {
       {{ isAnalyzing ? '分析中...' : '开始分析' }}
     </Button>
 
-    <div v-if="analysisStatus === 'error'" class="text-xs text-destructive">
+    <!-- 错误提示 -->
+    <div v-if="analysisStatus === 'error'" class="rounded-md bg-destructive/10 p-3 text-xs text-destructive">
       {{ errorMessage }}
     </div>
   </div>

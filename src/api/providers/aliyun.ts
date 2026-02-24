@@ -111,7 +111,7 @@ export async function generateTextSync(options: Omit<TextGenerationOptions, 'onC
   content: string
   usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
 }> {
-  const { apiKey, model, prompt, onUsage } = options
+  const { apiKey, model, prompt } = options
 
   return chat({
     apiKey,
