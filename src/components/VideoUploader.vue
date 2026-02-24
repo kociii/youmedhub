@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Upload, Link } from 'lucide-vue-next'
 
 const {
-  videoFile, videoUrl, uploadStatus, resetAnalysis,
+  videoFile, videoUrl, uploadStatus, resetAnalysis, clearVideoFile,
 } = useVideoAnalysis()
 
 const dragOver = ref(false)
@@ -82,6 +82,12 @@ function handleUrlInput() {
   videoFile.value = null // URL 方式不需要上传
   resetAnalysis()
 }
+
+// 清除视频文件
+function handleClearVideo() {
+  clearVideoFile()
+  errorMsg.value = ''
+}
 </script>
 
 <template>
@@ -102,7 +108,7 @@ function handleUrlInput() {
         variant="ghost"
         size="sm"
         class="mt-2 text-xs"
-        @click="videoFile = null; errorMsg = ''"
+        @click="handleClearVideo"
       >
         重新选择
       </Button>

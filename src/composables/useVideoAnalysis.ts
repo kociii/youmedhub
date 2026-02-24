@@ -81,6 +81,13 @@ export function useVideoAnalysis() {
     resetAnalysis()
   }
 
+  // 清除视频文件（保留其他状态）
+  function clearVideoFile() {
+    videoFile.value = null
+    uploadStatus.value = 'idle'
+    uploadProgress.value = 0
+  }
+
   return {
     videoFile,
     videoUrl,
@@ -107,5 +114,6 @@ export function useVideoAnalysis() {
     setSelectedModel,
     resetAnalysis,
     resetAll,
+    clearVideoFile,
   }
 }

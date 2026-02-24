@@ -61,7 +61,7 @@ const filteredFavorites = computed(() => {
   )
 })
 
-// 按日期分组
+// 按日期分组（返回有序数组）
 const groupedFavorites = computed(() => {
   const groups: Record<string, FavoriteItem[]> = {}
   for (const item of filteredFavorites.value) {
@@ -73,7 +73,10 @@ const groupedFavorites = computed(() => {
     if (!groups[date]) groups[date] = []
     groups[date].push(item)
   }
-  return groups
+  // 转换为有序数组（按日期降序）
+  return Object.entries(groups)
+    .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
+    .map(([date, items]) => ({ date, items }))
 })
 
 // 加载到编辑器
@@ -169,11 +172,11 @@ function formatTime(dateStr: string): string {
 
       <!-- 分组列表 -->
       <div v-else class="space-y-6">
-        <div v-for="(items, date) in groupedFavorites" :key="date">
-          <h3 class="mb-3 text-sm font-medium text-muted-foreground">{{ date }}</h3>
+        <div v-for="group in groupedFavorites" :key="group.date">
+          <h3 class="mb-3 text-sm font-medium text-muted-foreground">{{ group.date }}</h3>
           <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Card
-              v-for="item in items"
+              v-for="item in group.items"
               :key="item.id"
               class="cursor-pointer transition-colors hover:bg-accent"
               @click="handleLoad(item)"
