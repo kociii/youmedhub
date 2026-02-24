@@ -84,11 +84,11 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 - [x] 创建 `src/config/models.ts` 硬编码模型配置
 - [x] 移除旧模型（仅保留 Qwen3.5 + Doubao）
 
-#### 6. 页面迁移
+#### 6. 页面迁移 ✅
 
-- [ ] 迁移现有功能到 `AnalyzePage.vue`
-- [ ] 完善 `HomePage.vue`（欢迎页）
-- [ ] 完善 `SettingsPage.vue`（API Key 配置）
+- [x] 迁移现有功能到 `AnalyzePage.vue`
+- [x] 完善 `HomePage.vue`（欢迎页）
+- [x] 完善 `SettingsPage.vue`（API Key 配置）
 
 ### 验收标准
 
@@ -308,7 +308,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
 
 ```
 [x] Supabase 配置  ──  数据库 + RLS + OAuth 完成 (2026-02-24)
-[ ] v0.2.2-alpha  ──  三栏布局 + 模型接入完成
+[x] v0.2.2-alpha  ──  三栏布局 + 模型接入完成 (2026-02-24)
 [ ] v0.2.2-beta   ──  账号体系 + 收藏功能完成
 [ ] v0.2.2-stable ──  全部功能完成，准备发布
 ```
