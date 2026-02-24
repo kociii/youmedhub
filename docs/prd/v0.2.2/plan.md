@@ -52,13 +52,13 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 - [x] 安装 vue-router@4 和 @supabase/supabase-js
 - [x] 更新 `env.d.ts` 环境变量类型
 
-#### 2. 三栏布局
+#### 2. 三栏布局 ✅
 
-- [ ] 创建 `AppLayout.vue`（三栏容器）
-- [ ] 创建 `AppMenu.vue`（侧边菜单）
-- [ ] 创建 `UserBar.vue`（用户状态栏）
-- [ ] 更新 `App.vue` 使用新布局
-- [ ] 实现菜单折叠/展开
+- [x] 创建 `AppLayout.vue`（三栏容器）
+- [x] 创建 `AppMenu.vue`（侧边菜单）
+- [x] 创建 `UserBar.vue`（用户状态栏）
+- [x] 更新 `App.vue` 使用新布局
+- [x] 实现菜单折叠/展开
 - [ ] 实现响应式适配（移动端底部导航）
 
 #### 3. 路由配置
