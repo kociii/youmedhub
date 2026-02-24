@@ -1,39 +1,23 @@
 # v0.2.2 开发计划
 
-## 前置准备：Supabase 配置（开发前必须完成）
+> 📘 **详细配置指南**: [supabase-setup.md](./supabase-setup.md) - 包含完整 SQL、步骤截图、常见问题
 
-> ⚠️ 以下任务需要在开始编码前完成，否则认证和数据功能无法工作。
+---
 
-### Supabase 项目创建
+## 前置准备：Supabase 配置
 
-- [ ] 注册 Supabase 账号（https://supabase.com）
-- [ ] 创建新项目，选择区域（推荐：Singapore）
-- [ ] 记录项目 URL 和 Anon Key
-- [ ] 配置环境变量
+> ⚠️ **必须先完成**，否则认证和数据功能无法工作。预计 0.5 天。
 
-### 数据库表创建
+### 任务清单
 
-在 Supabase SQL Editor 中执行：
+- [ ] **项目创建**: 注册账号 → 创建项目 → 获取 URL/Key
+- [ ] **数据库配置**: 执行建表 SQL（profiles + script_favorites）
+- [ ] **RLS 配置**: 执行安全策略 SQL
+- [ ] **认证配置**: 启用 Email + GitHub OAuth（可选）
+- [ ] **URL 配置**: Site URL + Redirect URLs 白名单
+- [ ] **环境变量**: 本地 `.env` + Vercel Dashboard
 
-- [ ] 创建 `profiles` 表（用户资料扩展）
-- [ ] 创建 `script_favorites` 表（脚本收藏）
-- [ ] 配置 RLS（行级安全）策略
-- [ ] 创建必要的索引
-
-### 认证配置
-
-- [ ] 启用 Email 认证
-- [ ] 配置 GitHub OAuth（可选）
-  - [ ] 创建 GitHub OAuth App
-  - [ ] 配置 Client ID 和 Secret
-  - [ ] 设置回调 URL
-- [ ] 配置邮件模板（可选）
-
-### 安全配置
-
-- [ ] 配置 Site URL（生产环境域名）
-- [ ] 配置 Redirect URLs 白名单
-- [ ] 确认 RLS 已启用
+> 📋 所有 SQL 和配置步骤见 [supabase-setup.md](./supabase-setup.md)
 
 ---
 
