@@ -88,16 +88,10 @@ COMMENT ON COLUMN public.profiles.avatar_url IS '头像 URL';
 CREATE TABLE IF NOT EXISTS public.user_settings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
-
-  -- API Key 配置（加密存储，仅用户可见）
-  dashscope_api_key TEXT DEFAULT '',    -- 阿里百炼 API Key
-  ark_api_key TEXT DEFAULT '',          -- 火山引擎 ARK API Key
-
-  -- 默认模型偏好
+  dashscope_api_key TEXT DEFAULT '',
+  ark_api_key TEXT DEFAULT '',
   default_model TEXT DEFAULT 'qwen3-vl-flash'
     CHECK (default_model IN ('qwen3-vl-flash', 'qwen3-vl-plus', 'doubao-seed-2')),
-
-  -- 时间戳
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
@@ -115,60 +109,36 @@ COMMENT ON COLUMN public.user_settings.default_model IS '默认使用的模型';
 CREATE TABLE IF NOT EXISTS public.script_favorites (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-
-  -- 基本信息
   title TEXT NOT NULL,
   description TEXT DEFAULT '',
-
-  -- AI 输出数据
-  raw_markdown TEXT NOT NULL DEFAULT '',        -- AI 原始返回（Markdown 格式）
-  script_data JSONB NOT NULL DEFAULT '[]'::jsonb, -- 解析后的分镜数据（表格用）
-
-  -- 来源信息
+  raw_markdown TEXT NOT NULL DEFAULT '',
+  script_data JSONB NOT NULL DEFAULT '[]'::jsonb,
   source_type TEXT NOT NULL CHECK (source_type IN ('video', 'create', 'reference')),
-  source_url TEXT DEFAULT '',                   -- 原视频/图片 URL
-  source_video_duration INTEGER DEFAULT 0,      -- 原视频时长（秒）
-
-  -- 模型信息
-  model_provider TEXT DEFAULT '',               -- 模型提供商（aliyun/volcengine）
-  model_id TEXT DEFAULT '',                     -- 具体模型 ID
-
-  -- Token 消耗
+  source_url TEXT DEFAULT '',
+  source_video_duration INTEGER DEFAULT 0,
+  model_provider TEXT DEFAULT '',
+  model_id TEXT DEFAULT '',
   input_tokens INTEGER DEFAULT 0,
   output_tokens INTEGER DEFAULT 0,
-
-  -- 统计信息
-  shot_count INTEGER DEFAULT 0,                 -- 分镜数量
-
-  -- 时间戳
+  shot_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
 COMMENT ON TABLE public.script_favorites IS '脚本收藏表';
 COMMENT ON COLUMN public.script_favorites.raw_markdown IS 'AI 原始返回的 Markdown 内容';
-COMMENT ON COLUMN public.script_favorites.script_data IS '解析后的分镜 JSON 数组，用于表格展示';
-COMMENT ON COLUMN public.script_favorites.source_type IS '来源类型：video-视频分析, create-从零生成, reference-参考生成';
-COMMENT ON COLUMN public.script_favorites.model_provider IS '模型提供商：aliyun-阿里百炼, volcengine-火山引擎';
+COMMENT ON COLUMN public.script_favorites.script_data IS '解析后的分镜 JSON 数组';
+COMMENT ON COLUMN public.script_favorites.source_type IS '来源类型';
+COMMENT ON COLUMN public.script_favorites.model_provider IS '模型提供商';
 
 -- =====================================================
 -- 4. 创建索引
 -- =====================================================
 
--- user_settings 表索引
-CREATE INDEX IF NOT EXISTS idx_user_settings_user_id
-ON public.user_settings(user_id);
-
--- script_favorites 表索引
-CREATE INDEX IF NOT EXISTS idx_script_favorites_user_id
-ON public.script_favorites(user_id);
-
-CREATE INDEX IF NOT EXISTS idx_script_favorites_created_at
-ON public.script_favorites(created_at DESC);
-
--- 按来源类型筛选
-CREATE INDEX IF NOT EXISTS idx_script_favorites_source_type
-ON public.script_favorites(user_id, source_type);
+CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON public.user_settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_script_favorites_user_id ON public.script_favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_script_favorites_created_at ON public.script_favorites(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_script_favorites_source_type ON public.script_favorites(user_id, source_type);
 
 -- =====================================================
 -- 5. 自动更新 updated_at 字段
@@ -182,25 +152,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION public.handle_updated_at() IS '自动更新 updated_at 字段';
-
 -- profiles 表触发器
-CREATE TRIGGER public.set_profiles_updated_at
+DROP TRIGGER IF EXISTS set_profiles_updated_at ON public.profiles;
+CREATE TRIGGER set_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW
-  EXECUTE public.handle_updated_at();
+  EXECUTE FUNCTION public.handle_updated_at();
 
 -- user_settings 表触发器
-CREATE TRIGGER public.set_user_settings_updated_at
+DROP TRIGGER IF EXISTS set_user_settings_updated_at ON public.user_settings;
+CREATE TRIGGER set_user_settings_updated_at
   BEFORE UPDATE ON public.user_settings
   FOR EACH ROW
-  EXECUTE public.handle_updated_at();
+  EXECUTE FUNCTION public.handle_updated_at();
 
 -- script_favorites 表触发器
-CREATE TRIGGER public.set_script_favorites_updated_at
+DROP TRIGGER IF EXISTS set_script_favorites_updated_at ON public.script_favorites;
+CREATE TRIGGER set_script_favorites_updated_at
   BEFORE UPDATE ON public.script_favorites
   FOR EACH ROW
-  EXECUTE public.handle_updated_at();
+  EXECUTE FUNCTION public.handle_updated_at();
 
 -- =====================================================
 -- 6. 用户注册时自动创建 profile 和 settings
@@ -209,25 +180,20 @@ CREATE TRIGGER public.set_script_favorites_updated_at
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- 创建用户资料
   INSERT INTO public.profiles (id, nickname)
   VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'nickname', split_part(NEW.email, '@', 1)));
-
-  -- 创建用户设置（空 API Key，默认模型）
   INSERT INTO public.user_settings (user_id)
   VALUES (NEW.id);
-
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION public.handle_new_user() IS '用户注册时自动创建 profile 和 settings';
-
--- 用户注册时触发
-CREATE TRIGGER public.on_auth_user_created
+-- 用户注册时触发（先删除已存在的触发器）
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
-  EXECUTE public.handle_new_user();
+  EXECUTE FUNCTION public.handle_new_user();
 ```
 
 ### 2.3 验证表创建成功
