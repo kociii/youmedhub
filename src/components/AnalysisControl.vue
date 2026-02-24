@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 import { analyzeVideo } from '@/api/videoAnalysis'
-import { MODELS_BY_PROVIDER } from '@/api/analysis'
+import { MODELS_BY_PROVIDER } from '@/config/models'
 import { Button } from '@/components/ui/button'
 import {
   Select,

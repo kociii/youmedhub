@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import type { VideoScriptItem, AnalysisStatus, TokenUsage } from '@/types/video'
-import type { ModelConfig } from '@/lib/openai-client'
+import type { ModelConfig } from '@/config/models'
 
 const videoFile = ref<File | null>(null)
 const videoUrl = ref('')

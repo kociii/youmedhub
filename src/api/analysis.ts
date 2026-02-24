@@ -3,35 +3,21 @@
  * 整合 Aliyun 和 Volcengine 的调用
  */
 
-import type { ModelConfig } from '@/lib/openai-client'
-export type { ModelConfig }
-
+import { AVAILABLE_MODELS, MODELS_BY_PROVIDER, getModelById } from '@/config/models'
+import type { ModelConfig } from '@/config/models'
 import * as aliyun from './providers/aliyun'
 import * as volcengine from './providers/volcengine'
 
-// 导出所有模型配置
-export const ALL_MODELS: ModelConfig[] = [
-  ...aliyun.ALIYUN_MODELS,
-  ...volcengine.VOLCENGINE_MODELS,
-]
-
-// 按提供商分组
-export const MODELS_BY_PROVIDER = {
-  aliyun: aliyun.ALIYUN_MODELS,
-  volcengine: volcengine.VOLCENGINE_MODELS,
-}
-
-// 获取模型配置
-export function getModelConfig(modelId: string): ModelConfig | undefined {
-  return ALL_MODELS.find(m => m.id === modelId)
-}
+// 导出模型配置
+export { AVAILABLE_MODELS, MODELS_BY_PROVIDER, getModelById }
+export type { ModelConfig }
 
 // 获取模型的默认 API Key（从 localStorage）
 export function getApiKeyForModel(modelId: string): string {
-  const config = getModelConfig(modelId)
-  if (!config) return ''
+  const model = getModelById(modelId)
+  if (!model) return ''
 
-  const key = config.provider === 'aliyun'
+  const key = model.provider === 'aliyun'
     ? localStorage.getItem('dashscope_api_key')
     : localStorage.getItem('ark_api_key')
 
@@ -50,12 +36,12 @@ export interface AnalyzeVideoOptions {
 
 // 视频分析
 export async function analyzeVideo(options: AnalyzeVideoOptions): Promise<string> {
-  const config = getModelConfig(options.model)
-  if (!config) {
+  const model = getModelById(options.model)
+  if (!model) {
     throw new Error(`未知模型: ${options.model}`)
   }
 
-  if (config.provider === 'aliyun') {
+  if (model.provider === 'aliyun') {
     return aliyun.analyzeVideo(options)
   } else {
     return volcengine.analyzeVideo(options)
@@ -74,12 +60,12 @@ export interface AnalyzeImageOptions {
 
 // 图片分析
 export async function analyzeImage(options: AnalyzeImageOptions): Promise<string> {
-  const config = getModelConfig(options.model)
-  if (!config) {
+  const model = getModelById(options.model)
+  if (!model) {
     throw new Error(`未知模型: ${options.model}`)
   }
 
-  if (config.provider === 'aliyun') {
+  if (model.provider === 'aliyun') {
     return aliyun.analyzeImage(options)
   } else {
     return volcengine.analyzeImage(options)
@@ -97,12 +83,12 @@ export interface GenerateTextOptions {
 
 // 文本生成（流式）
 export async function generateText(options: GenerateTextOptions): Promise<string> {
-  const config = getModelConfig(options.model)
-  if (!config) {
+  const model = getModelById(options.model)
+  if (!model) {
     throw new Error(`未知模型: ${options.model}`)
   }
 
-  if (config.provider === 'aliyun') {
+  if (model.provider === 'aliyun') {
     return aliyun.generateText(options)
   } else {
     return volcengine.generateText(options)
@@ -113,12 +99,12 @@ export async function generateText(options: GenerateTextOptions): Promise<string
 export async function generateTextSync(
   options: Omit<GenerateTextOptions, 'onChunk'>
 ): Promise<{ content: string; usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number } }> {
-  const config = getModelConfig(options.model)
-  if (!config) {
+  const model = getModelById(options.model)
+  if (!model) {
     throw new Error(`未知模型: ${options.model}`)
   }
 
-  if (config.provider === 'aliyun') {
+  if (model.provider === 'aliyun') {
     return aliyun.generateTextSync(options)
   } else {
     return volcengine.generateTextSync(options)

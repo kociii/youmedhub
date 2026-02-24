@@ -3,25 +3,7 @@
  * OpenAI SDK 兼容格式
  */
 
-import { streamChat, chat, type ModelConfig } from '@/lib/openai-client'
-
-// 阿里百炼模型配置
-export const ALIYUN_MODELS: ModelConfig[] = [
-  {
-    id: 'qwen3-vl-flash',
-    name: 'Qwen3-VL-Flash',
-    provider: 'aliyun',
-    description: '快速多模态理解',
-    capabilities: ['video', 'image', 'text'],
-  },
-  {
-    id: 'qwen3-vl-plus',
-    name: 'Qwen3-VL-Plus',
-    provider: 'aliyun',
-    description: '增强多模态理解',
-    capabilities: ['video', 'image', 'text'],
-  },
-]
+import { streamChat, chat } from '@/lib/openai-client'
 
 // 视频分析
 export interface VideoAnalysisOptions {

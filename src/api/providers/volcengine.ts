@@ -3,18 +3,7 @@
  * OpenAI SDK 兼容格式
  */
 
-import { streamChat, chat, type ModelConfig } from '@/lib/openai-client'
-
-// 火山引擎模型配置
-export const VOLCENGINE_MODELS: ModelConfig[] = [
-  {
-    id: 'doubao-seed-1-6-flash-250415',
-    name: 'Doubao-Seed-Flash',
-    provider: 'volcengine',
-    description: '快速视频理解',
-    capabilities: ['video', 'image', 'text'],
-  },
-]
+import { streamChat, chat } from '@/lib/openai-client'
 
 // 视频分析
 export interface VideoAnalysisOptions {

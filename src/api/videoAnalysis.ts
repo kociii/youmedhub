@@ -2,13 +2,14 @@ import type { VideoAnalysisResponse, TokenUsage } from '../types/video';
 import { uploadToTemporaryFile, validateVideoFile } from './temporaryFile';
 import { VIDEO_ANALYSIS_PROMPT } from '../prompts/videoAnalysis';
 import * as analysis from './analysis';
-import type { ModelConfig } from '@/lib/openai-client';
+import type { ModelConfig } from '@/config/models';
+import { AVAILABLE_MODELS, MODELS_BY_PROVIDER, getModelById } from '@/config/models';
 
 // 导出提示词供组件使用
 export { VIDEO_ANALYSIS_PROMPT };
 
 // 导出模型相关
-export { ALL_MODELS, MODELS_BY_PROVIDER, getModelConfig } from './analysis';
+export { AVAILABLE_MODELS, MODELS_BY_PROVIDER, getModelById };
 export type { ModelConfig };
 
 // AI 模型类型（保持兼容）
