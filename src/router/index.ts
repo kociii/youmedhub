@@ -7,20 +7,30 @@ const router = createRouter({
       path: '/',
       components: {
         default: () => import('@/views/HomePage.vue'),
-        config: () => import('@/views/HomePage.vue'),
       },
       meta: { title: '首页' },
     },
     {
-      path: '/script',
+      path: '/analyze',
+      name: 'analyze',
       components: {
-        default: () => import('@/views/ScriptPage.vue'),
+        default: () => import('@/views/AnalyzePage.vue'),
         config: () => import('@/components/LeftPanel.vue'),
       },
-      meta: { title: '脚本创作' },
+      meta: { title: '视频脚本解析', hasConfig: true },
+    },
+    {
+      path: '/create',
+      name: 'create',
+      components: {
+        default: () => import('@/views/CreatePage.vue'),
+        config: () => import('@/components/LeftPanel.vue'),
+      },
+      meta: { title: '脚本生成', hasConfig: true },
     },
     {
       path: '/favorites',
+      name: 'favorites',
       components: {
         default: () => import('@/views/FavoritesPage.vue'),
       },
@@ -28,6 +38,7 @@ const router = createRouter({
     },
     {
       path: '/settings',
+      name: 'settings',
       components: {
         default: () => import('@/views/SettingsPage.vue'),
       },
@@ -35,6 +46,7 @@ const router = createRouter({
     },
     {
       path: '/profile',
+      name: 'profile',
       components: {
         default: () => import('@/views/ProfilePage.vue'),
       },
@@ -42,6 +54,7 @@ const router = createRouter({
     },
     {
       path: '/login',
+      name: 'login',
       components: {
         default: () => import('@/views/LoginPage.vue'),
       },
