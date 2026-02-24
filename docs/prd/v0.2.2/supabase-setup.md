@@ -88,13 +88,20 @@ CREATE TABLE IF NOT EXISTS public.script_favorites (
   title TEXT NOT NULL,
   description TEXT DEFAULT '',
 
-  -- 脚本数据（JSON 格式存储完整的分镜脚本）
+  -- AI 原始返回（Markdown 格式，保留完整信息）
+  raw_markdown TEXT NOT NULL DEFAULT '',
+
+  -- 脚本数据（解析后的 JSON 数组，用于表格展示和编辑）
   script_data JSONB NOT NULL DEFAULT '[]'::jsonb,
 
   -- 来源信息
   source_type TEXT NOT NULL CHECK (source_type IN ('video', 'create', 'reference')),
   source_url TEXT DEFAULT '',           -- 原视频/图片 URL
   model_used TEXT DEFAULT '',           -- 使用的模型
+
+  -- Token 消耗统计
+  input_tokens INTEGER DEFAULT 0,
+  output_tokens INTEGER DEFAULT 0,
 
   -- 时间戳
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,

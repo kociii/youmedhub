@@ -146,8 +146,12 @@
 | user_id | UUID | 用户 ID |
 | title | string | 标题 |
 | description | string | 描述 |
-| script_data | JSON | 完整脚本数据 |
-| source_type | string | 来源类型 |
+| raw_markdown | TEXT | AI 原始返回（Markdown） |
+| script_data | JSONB | 解析后的脚本数据（表格用） |
+| source_type | string | 来源类型（video/create/reference） |
+| model_used | string | 使用的模型 |
+| input_tokens | integer | 输入 Token 数 |
+| output_tokens | integer | 输出 Token 数 |
 | created_at | timestamp | 创建时间 |
 
 ### 4.4 验收标准
