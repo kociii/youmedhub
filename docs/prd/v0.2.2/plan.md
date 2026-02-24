@@ -77,11 +77,11 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 - [x] 创建 `src/api/analysis.ts`（统一入口）
 - [x] 重构现有 `videoAnalysis.ts` 使用新接口
 
-#### 5. 模型选择 UI
+#### 5. 模型选择 UI ✅
 
-- [ ] 更新 `AnalysisControl.vue` 支持分组下拉
-- [ ] 实现 API Key 双渠道配置
-- [ ] 移除旧模型（仅保留 Qwen3.5 + Doubao）
+- [x] 更新 `AnalysisControl.vue` 支持分组下拉
+- [x] 实现 API Key 双渠道配置
+- [x] 移除旧模型（仅保留 Qwen3.5 + Doubao）
 
 #### 6. 页面迁移
 
