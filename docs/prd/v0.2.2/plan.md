@@ -162,13 +162,13 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 - [x] 已登录显示个人中心入口
 - [x] 实现退出登录
 
-#### 6. 收藏功能
+#### 6. 收藏功能 ✅
 
-- [ ] 创建 `src/composables/useFavorites.ts`
-- [ ] 实现收藏 CRUD 操作
-- [ ] 创建收藏确认弹窗
-- [ ] 更新 ResultToolbar 添加收藏按钮
-- [ ] 实现未登录提示
+- [x] 创建 `src/composables/useFavorites.ts`
+- [x] 实现收藏 CRUD 操作
+- [x] 创建收藏确认弹窗 `FavoriteDialog.vue`
+- [x] 更新 ResultToolbar 添加收藏按钮
+- [x] 实现未登录提示
 
 #### 7. 收藏列表页面
 
