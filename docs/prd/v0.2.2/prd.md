@@ -140,18 +140,42 @@
 
 ### 4.3 数据结构
 
+#### profiles 表（用户资料）
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| id | UUID | 用户 ID（关联 auth.users） |
+| nickname | TEXT | 昵称 |
+| avatar_url | TEXT | 头像 URL |
+| created_at | timestamp | 创建时间 |
+
+#### user_settings 表（用户设置）
+
 | 字段 | 类型 | 描述 |
 |------|------|------|
 | id | UUID | 主键 |
 | user_id | UUID | 用户 ID |
-| title | string | 标题 |
-| description | string | 描述 |
+| dashscope_api_key | TEXT | 阿里百炼 API Key |
+| ark_api_key | TEXT | 火山引擎 ARK API Key |
+| default_model | TEXT | 默认模型 |
+
+#### script_favorites 表（脚本收藏）
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| id | UUID | 主键 |
+| user_id | UUID | 用户 ID |
+| title | TEXT | 标题 |
+| description | TEXT | 描述 |
 | raw_markdown | TEXT | AI 原始返回（Markdown） |
-| script_data | JSONB | 解析后的脚本数据（表格用） |
-| source_type | string | 来源类型（video/create/reference） |
-| model_used | string | 使用的模型 |
-| input_tokens | integer | 输入 Token 数 |
-| output_tokens | integer | 输出 Token 数 |
+| script_data | JSONB | 解析后的分镜数据 |
+| source_type | TEXT | 来源（video/create/reference） |
+| source_url | TEXT | 原视频/图片 URL |
+| model_provider | TEXT | 模型提供商（aliyun/volcengine） |
+| model_id | TEXT | 模型 ID |
+| input_tokens | INTEGER | 输入 Token |
+| output_tokens | INTEGER | 输出 Token |
+| shot_count | INTEGER | 分镜数量 |
 | created_at | timestamp | 创建时间 |
 
 ### 4.4 验收标准

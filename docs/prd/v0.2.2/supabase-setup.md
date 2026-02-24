@@ -65,7 +65,7 @@
 -- =====================================================
 -- 1. 用户资料扩展表
 -- =====================================================
--- 扩展 Supabase auth.users 表，存储用户额外信息
+-- 扩展 Supabase auth.users 表，存储用户基本信息
 
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
@@ -76,32 +76,69 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 COMMENT ON TABLE public.profiles IS '用户资料扩展表';
+COMMENT ON COLUMN public.profiles.id IS '用户 ID，关联 auth.users';
+COMMENT ON COLUMN public.profiles.nickname IS '用户昵称';
+COMMENT ON COLUMN public.profiles.avatar_url IS '头像 URL';
 
 -- =====================================================
--- 2. 脚本收藏表
+-- 2. 用户设置表
 -- =====================================================
--- 存储用户收藏的视频脚本
+-- 存储用户的 API Key 配置（阿里百炼、火山引擎）
+
+CREATE TABLE IF NOT EXISTS public.user_settings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
+
+  -- API Key 配置（加密存储，仅用户可见）
+  dashscope_api_key TEXT DEFAULT '',    -- 阿里百炼 API Key
+  ark_api_key TEXT DEFAULT '',          -- 火山引擎 ARK API Key
+
+  -- 默认模型偏好
+  default_model TEXT DEFAULT 'qwen3-vl-flash'
+    CHECK (default_model IN ('qwen3-vl-flash', 'qwen3-vl-plus', 'doubao-seed-2')),
+
+  -- 时间戳
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+COMMENT ON TABLE public.user_settings IS '用户设置表';
+COMMENT ON COLUMN public.user_settings.dashscope_api_key IS '阿里百炼 API Key';
+COMMENT ON COLUMN public.user_settings.ark_api_key IS '火山引擎 ARK API Key';
+COMMENT ON COLUMN public.user_settings.default_model IS '默认使用的模型';
+
+-- =====================================================
+-- 3. 脚本收藏表
+-- =====================================================
+-- 存储用户收藏的视频脚本（包含 AI 原始返回和解析后数据）
 
 CREATE TABLE IF NOT EXISTS public.script_favorites (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+
+  -- 基本信息
   title TEXT NOT NULL,
   description TEXT DEFAULT '',
 
-  -- AI 原始返回（Markdown 格式，保留完整信息）
-  raw_markdown TEXT NOT NULL DEFAULT '',
-
-  -- 脚本数据（解析后的 JSON 数组，用于表格展示和编辑）
-  script_data JSONB NOT NULL DEFAULT '[]'::jsonb,
+  -- AI 输出数据
+  raw_markdown TEXT NOT NULL DEFAULT '',        -- AI 原始返回（Markdown 格式）
+  script_data JSONB NOT NULL DEFAULT '[]'::jsonb, -- 解析后的分镜数据（表格用）
 
   -- 来源信息
   source_type TEXT NOT NULL CHECK (source_type IN ('video', 'create', 'reference')),
-  source_url TEXT DEFAULT '',           -- 原视频/图片 URL
-  model_used TEXT DEFAULT '',           -- 使用的模型
+  source_url TEXT DEFAULT '',                   -- 原视频/图片 URL
+  source_video_duration INTEGER DEFAULT 0,      -- 原视频时长（秒）
 
-  -- Token 消耗统计
+  -- 模型信息
+  model_provider TEXT DEFAULT '',               -- 模型提供商（aliyun/volcengine）
+  model_id TEXT DEFAULT '',                     -- 具体模型 ID
+
+  -- Token 消耗
   input_tokens INTEGER DEFAULT 0,
   output_tokens INTEGER DEFAULT 0,
+
+  -- 统计信息
+  shot_count INTEGER DEFAULT 0,                 -- 分镜数量
 
   -- 时间戳
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -109,24 +146,34 @@ CREATE TABLE IF NOT EXISTS public.script_favorites (
 );
 
 COMMENT ON TABLE public.script_favorites IS '脚本收藏表';
+COMMENT ON COLUMN public.script_favorites.raw_markdown IS 'AI 原始返回的 Markdown 内容';
+COMMENT ON COLUMN public.script_favorites.script_data IS '解析后的分镜 JSON 数组，用于表格展示';
+COMMENT ON COLUMN public.script_favorites.source_type IS '来源类型：video-视频分析, create-从零生成, reference-参考生成';
+COMMENT ON COLUMN public.script_favorites.model_provider IS '模型提供商：aliyun-阿里百炼, volcengine-火山引擎';
 
 -- =====================================================
--- 3. 创建索引
+-- 4. 创建索引
 -- =====================================================
 
--- 优化用户收藏查询
+-- user_settings 表索引
+CREATE INDEX IF NOT EXISTS idx_user_settings_user_id
+ON public.user_settings(user_id);
+
+-- script_favorites 表索引
 CREATE INDEX IF NOT EXISTS idx_script_favorites_user_id
 ON public.script_favorites(user_id);
 
--- 按创建时间排序（最新收藏在前）
 CREATE INDEX IF NOT EXISTS idx_script_favorites_created_at
 ON public.script_favorites(created_at DESC);
 
+-- 按来源类型筛选
+CREATE INDEX IF NOT EXISTS idx_script_favorites_source_type
+ON public.script_favorites(user_id, source_type);
+
 -- =====================================================
--- 4. 自动更新 updated_at 字段
+-- 5. 自动更新 updated_at 字段
 -- =====================================================
 
--- profiles 表自动更新
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -135,29 +182,46 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+COMMENT ON FUNCTION public.handle_updated_at() IS '自动更新 updated_at 字段';
+
+-- profiles 表触发器
 CREATE TRIGGER public.set_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW
   EXECUTE public.handle_updated_at();
 
--- script_favorites 表自动更新
+-- user_settings 表触发器
+CREATE TRIGGER public.set_user_settings_updated_at
+  BEFORE UPDATE ON public.user_settings
+  FOR EACH ROW
+  EXECUTE public.handle_updated_at();
+
+-- script_favorites 表触发器
 CREATE TRIGGER public.set_script_favorites_updated_at
   BEFORE UPDATE ON public.script_favorites
   FOR EACH ROW
   EXECUTE public.handle_updated_at();
 
 -- =====================================================
--- 5. 用户注册时自动创建 profile
+-- 6. 用户注册时自动创建 profile 和 settings
 -- =====================================================
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
+  -- 创建用户资料
   INSERT INTO public.profiles (id, nickname)
-  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'nickname', NEW.email));
+  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'nickname', split_part(NEW.email, '@', 1)));
+
+  -- 创建用户设置（空 API Key，默认模型）
+  INSERT INTO public.user_settings (user_id)
+  VALUES (NEW.id);
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION public.handle_new_user() IS '用户注册时自动创建 profile 和 settings';
 
 -- 用户注册时触发
 CREATE TRIGGER public.on_auth_user_created
@@ -257,6 +321,7 @@ https://your-domain.vercel.app/auth/v1/callback
 -- =====================================================
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.script_favorites ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
@@ -282,7 +347,30 @@ CREATE POLICY "Users can insert own profile"
   WITH CHECK (auth.uid() = id);
 
 -- =====================================================
--- 3. script_favorites 表 RLS 策略
+-- 3. user_settings 表 RLS 策略
+-- =====================================================
+-- API Key 等敏感数据，严格控制访问权限
+
+-- 用户只能查看自己的设置
+CREATE POLICY "Users can view own settings"
+  ON public.user_settings
+  FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- 用户只能更新自己的设置
+CREATE POLICY "Users can update own settings"
+  ON public.user_settings
+  FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- 用户只能插入自己的设置（通常由触发器自动创建）
+CREATE POLICY "Users can insert own settings"
+  ON public.user_settings
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- =====================================================
+-- 4. script_favorites 表 RLS 策略
 -- =====================================================
 
 -- 用户只能查看自己的收藏
@@ -310,18 +398,19 @@ CREATE POLICY "Users can delete own favorites"
   USING (auth.uid() = user_id);
 
 -- =====================================================
--- 4. 验证 RLS 配置
+-- 5. 验证 RLS 配置
 -- =====================================================
 
--- 查看 profiles 表的 RLS 策略
-SELECT schemaname, tablename, policyname, permissive
+-- 查看所有表的 RLS 策略
+SELECT schemaname, tablename, policyname, permissive, cmd
 FROM pg_policies
-WHERE tablename = 'profiles';
+WHERE schemaname = 'public'
+ORDER BY tablename, policyname;
 
--- 查看 script_favorites 表的 RLS 策略
-SELECT schemaname, tablename, policyname, permissive
-FROM pg_policies
-WHERE tablename = 'script_favorites';
+-- 验证 RLS 是否启用
+SELECT tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public';
 ```
 
 ### 4.2 配置 URL 白名单

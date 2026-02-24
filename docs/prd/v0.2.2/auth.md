@@ -50,7 +50,21 @@ CREATE TABLE profiles (
 );
 ```
 
-#### 脚本收藏表
+#### 用户设置表（user_settings）
+
+```sql
+CREATE TABLE user_settings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users UNIQUE NOT NULL,
+  dashscope_api_key TEXT DEFAULT '',   -- 阿里百炼 API Key
+  ark_api_key TEXT DEFAULT '',         -- 火山引擎 ARK API Key
+  default_model TEXT DEFAULT 'qwen3-vl-flash',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+#### 脚本收藏表（script_favorites）
 
 ```sql
 CREATE TABLE script_favorites (
@@ -58,10 +72,25 @@ CREATE TABLE script_favorites (
   user_id UUID REFERENCES auth.users NOT NULL,
   title TEXT NOT NULL,
   description TEXT,
-  script_data JSONB NOT NULL,  -- 完整的脚本数据
+
+  -- AI 输出
+  raw_markdown TEXT NOT NULL DEFAULT '',  -- AI 原始返回
+  script_data JSONB NOT NULL DEFAULT '[]', -- 解析后的分镜数据
+
+  -- 来源信息
   source_type TEXT NOT NULL,   -- 'video' | 'create' | 'reference'
   source_url TEXT,             -- 原视频/图片 URL
-  model_used TEXT,             -- 使用的模型
+  source_video_duration INTEGER DEFAULT 0,
+
+  -- 模型信息
+  model_provider TEXT DEFAULT '',  -- 'aliyun' | 'volcengine'
+  model_id TEXT DEFAULT '',
+
+  -- Token 消耗
+  input_tokens INTEGER DEFAULT 0,
+  output_tokens INTEGER DEFAULT 0,
+  shot_count INTEGER DEFAULT 0,
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -69,6 +98,7 @@ CREATE TABLE script_favorites (
 -- 索引
 CREATE INDEX idx_favorites_user ON script_favorites(user_id);
 CREATE INDEX idx_favorites_created ON script_favorites(created_at DESC);
+CREATE INDEX idx_favorites_source ON script_favorites(user_id, source_type);
 ```
 
 ### 2.3 行级安全（RLS）
@@ -76,6 +106,7 @@ CREATE INDEX idx_favorites_created ON script_favorites(created_at DESC);
 ```sql
 -- 启用 RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE script_favorites ENABLE ROW LEVEL SECURITY;
 
 -- profiles: 用户只能查看和修改自己的资料
@@ -85,12 +116,22 @@ CREATE POLICY "Users can view own profile" ON profiles
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
 
+-- user_settings: 用户只能操作自己的设置
+CREATE POLICY "Users can view own settings" ON user_settings
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own settings" ON user_settings
+  FOR UPDATE USING (auth.uid() = user_id);
+
 -- script_favorites: 用户只能操作自己的收藏
 CREATE POLICY "Users can view own favorites" ON script_favorites
   FOR SELECT USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can insert own favorites" ON script_favorites
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own favorites" ON script_favorites
+  FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete own favorites" ON script_favorites
   FOR DELETE USING (auth.uid() = user_id);
@@ -186,15 +227,34 @@ export function useAuth() {
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from './useAuth'
-import type { VideoScriptItem } from '@/types/video'
+import type { VideoScriptItem, TokenUsage } from '@/types/video'
 
 interface Favorite {
   id: string
   title: string
   description: string
+  raw_markdown: string
   script_data: VideoScriptItem[]
   source_type: string
+  source_url: string
+  model_provider: string
+  model_id: string
+  input_tokens: number
+  output_tokens: number
+  shot_count: number
   created_at: string
+}
+
+interface AddFavoriteParams {
+  title: string
+  description?: string
+  rawMarkdown: string
+  scriptData: VideoScriptItem[]
+  sourceType: 'video' | 'create' | 'reference'
+  sourceUrl?: string
+  modelProvider: 'aliyun' | 'volcengine'
+  modelId: string
+  tokenUsage?: TokenUsage | null
 }
 
 const favorites = ref<Favorite[]>([])
@@ -216,24 +276,24 @@ export function useFavorites() {
     loading.value = false
   }
 
-  async function addFavorite(
-    title: string,
-    scriptData: VideoScriptItem[],
-    sourceType: string,
-    description?: string,
-    sourceUrl?: string
-  ) {
+  async function addFavorite(params: AddFavoriteParams) {
     if (!user.value) return { error: 'Not authenticated' }
 
     const { data, error } = await supabase
       .from('script_favorites')
       .insert({
         user_id: user.value.id,
-        title,
-        description,
-        script_data: scriptData,
-        source_type: sourceType,
-        source_url: sourceUrl,
+        title: params.title,
+        description: params.description || '',
+        raw_markdown: params.rawMarkdown,
+        script_data: params.scriptData,
+        source_type: params.sourceType,
+        source_url: params.sourceUrl || '',
+        model_provider: params.modelProvider,
+        model_id: params.modelId,
+        input_tokens: params.tokenUsage?.prompt_tokens || 0,
+        output_tokens: params.tokenUsage?.completion_tokens || 0,
+        shot_count: params.scriptData.length,
       })
       .select()
       .single()
