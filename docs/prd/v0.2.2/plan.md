@@ -43,13 +43,14 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 
 ### 任务清单
 
-#### 1. 项目结构调整
+#### 1. 项目结构调整 ✅
 
-- [ ] 创建 `src/lib/` 目录
-- [ ] 创建 `src/views/` 目录
-- [ ] 创建 `src/components/layout/` 目录
-- [ ] 创建 `src/router/index.ts`
-- [ ] 更新 `tsconfig.json` 路径别名
+- [x] 创建 `src/lib/` 目录
+- [x] 创建 `src/views/` 目录
+- [x] 创建 `src/components/layout/` 目录
+- [x] 创建 `src/router/index.ts`
+- [x] 安装 vue-router@4 和 @supabase/supabase-js
+- [x] 更新 `env.d.ts` 环境变量类型
 
 #### 2. 三栏布局
 
