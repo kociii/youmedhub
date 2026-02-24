@@ -17,6 +17,9 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Supabase 配置（包含项目实际信息）
+docs/prd/v0.2.2/supabase-setup.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
