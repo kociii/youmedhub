@@ -41,9 +41,10 @@ const enableThinking = ref(false)
 const thinkingContent = ref('')
 const isThinking = ref(false)
 
-const hasVideo = computed(() => !!videoUrl.value)
+const hasVideo = computed(() => !!videoFile.value || !!videoUrl.value)
 const hasResult = computed(() => !!markdownContent.value)
 const isAnalyzing = computed(() => analysisStatus.value === 'analyzing')
+const needsUpload = computed(() => !!videoFile.value && !videoUrl.value)
 
 // 当前 API Key
 const currentApiKey = computed(() => dashscopeApiKey.value)
@@ -101,6 +102,7 @@ export function useVideoAnalysis() {
     hasResult,
     isAnalyzing,
     hasValidApiKey,
+    needsUpload,
     setDashscopeApiKey,
     setSelectedModel,
     resetAnalysis,

@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
-import { uploadToTemporaryFile, validateVideoFile } from '@/api/temporaryFile'
+import { validateVideoFile } from '@/api/temporaryFile'
 import { Card } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Upload, Link } from 'lucide-vue-next'
 
 const {
-  videoFile, videoUrl, uploadProgress, uploadStatus, resetAnalysis,
+  videoFile, videoUrl, uploadStatus, resetAnalysis,
 } = useVideoAnalysis()
 
 const dragOver = ref(false)
@@ -51,21 +50,10 @@ async function handleFile(file: File) {
   const durationOk = await checkDuration(file)
   if (!durationOk) return
 
+  // 只保存文件，不立即上传
   videoFile.value = file
-  uploadStatus.value = 'uploading'
-  uploadProgress.value = 0
+  uploadStatus.value = 'idle'
   resetAnalysis()
-
-  try {
-    const result = await uploadToTemporaryFile(file, (loaded, total) => {
-      uploadProgress.value = total > 0 ? Math.round((loaded / total) * 100) : 0
-    })
-    videoUrl.value = result.downloadLink
-    uploadStatus.value = 'success'
-  } catch (e) {
-    errorMsg.value = e instanceof Error ? e.message : '上传失败'
-    uploadStatus.value = 'error'
-  }
 }
 
 function onDrop(e: DragEvent) {
@@ -91,6 +79,7 @@ function handleUrlInput() {
   errorMsg.value = ''
   videoUrl.value = urlInput.value.trim()
   uploadStatus.value = 'success'
+  videoFile.value = null // URL 方式不需要上传
   resetAnalysis()
 }
 </script>
@@ -103,13 +92,23 @@ function handleUrlInput() {
     @dragleave="dragOver = false"
     @drop.prevent="onDrop"
   >
-    <template v-if="uploadStatus === 'uploading'">
-      <p class="mb-2 text-sm text-muted-foreground">
-        正在上传 {{ videoFile?.name }}
+    <!-- 已选择文件提示 -->
+    <div v-if="videoFile" class="text-center">
+      <p class="text-sm font-medium text-foreground">{{ videoFile.name }}</p>
+      <p class="mt-1 text-xs text-muted-foreground">
+        已选择，点击「开始分析」上传
       </p>
-      <Progress :model-value="uploadProgress" class="w-full" />
-      <p class="mt-1 text-xs text-muted-foreground">{{ uploadProgress }}%</p>
-    </template>
+      <Button
+        variant="ghost"
+        size="sm"
+        class="mt-2 text-xs"
+        @click="videoFile = null; errorMsg = ''"
+      >
+        重新选择
+      </Button>
+    </div>
+
+    <!-- 上传/输入区域 -->
     <template v-else>
       <label class="flex cursor-pointer flex-col items-center gap-2">
         <Upload class="h-10 w-10 text-muted-foreground" />
@@ -144,8 +143,8 @@ function handleUrlInput() {
           <Button size="sm" @click="handleUrlInput">确定</Button>
         </div>
       </div>
-
-      <p v-if="errorMsg" class="mt-2 text-xs text-destructive">{{ errorMsg }}</p>
     </template>
+
+    <p v-if="errorMsg" class="mt-2 text-xs text-destructive">{{ errorMsg }}</p>
   </Card>
 </template>

@@ -3,10 +3,12 @@ import { ref, computed } from 'vue'
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 import { useAuth } from '@/composables/useAuth'
 import { analyzeVideo, type AIModel } from '@/api/videoAnalysis'
+import { uploadToTemporaryFile } from '@/api/temporaryFile'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { Loader2, Play, Brain } from 'lucide-vue-next'
+import { Progress } from '@/components/ui/progress'
+import { Loader2, Play, Brain, Upload } from 'lucide-vue-next'
 import AuthDialog from '@/components/AuthDialog.vue'
 
 // 获取全局状态
@@ -15,6 +17,10 @@ const auth = useAuth()
 
 // 登录弹窗
 const showAuthDialog = ref(false)
+
+// 上传状态
+const isUploading = ref(false)
+const uploadProgress = ref(0)
 
 // 本地计算属性，用于 template 绑定
 const enableThinkingModel = computed({
@@ -26,8 +32,34 @@ const isAnalyzing = computed(() => va.isAnalyzing.value)
 const hasVideo = computed(() => va.hasVideo.value)
 const hasApiKey = computed(() => !!va.currentApiKey.value)
 const isError = computed(() => va.analysisStatus.value === 'error')
+const isProcessing = computed(() => isUploading.value || isAnalyzing.value)
 
 const errorMessage = ref('')
+
+// 上传视频
+async function uploadVideo(): Promise<string> {
+  if (!va.videoFile.value) {
+    throw new Error('请先选择视频')
+  }
+
+  isUploading.value = true
+  uploadProgress.value = 0
+  va.uploadStatus.value = 'uploading'
+
+  try {
+    const result = await uploadToTemporaryFile(va.videoFile.value, (loaded, total) => {
+      uploadProgress.value = total > 0 ? Math.round((loaded / total) * 100) : 0
+    })
+    va.videoUrl.value = result.downloadLink
+    va.uploadStatus.value = 'success'
+    return result.downloadLink
+  } catch (e) {
+    va.uploadStatus.value = 'error'
+    throw new Error(e instanceof Error ? e.message : '上传失败')
+  } finally {
+    isUploading.value = false
+  }
+}
 
 async function startAnalysis() {
   // 检查登录状态
@@ -41,18 +73,27 @@ async function startAnalysis() {
     return
   }
 
-  va.analysisStatus.value = 'analyzing'
-  va.markdownContent.value = ''
-  va.scriptItems.value = []
-  va.tokenUsage.value = null
+  // 重置状态
   errorMessage.value = ''
   va.thinkingContent.value = ''
   va.isThinking.value = false
-  va.viewMode.value = 'markdown'
 
   try {
+    // 1. 如果需要上传，先上传视频
+    let videoUrl = va.videoUrl.value
+    if (va.needsUpload.value) {
+      videoUrl = await uploadVideo()
+    }
+
+    // 2. 开始分析
+    va.analysisStatus.value = 'analyzing'
+    va.markdownContent.value = ''
+    va.scriptItems.value = []
+    va.tokenUsage.value = null
+    va.viewMode.value = 'markdown'
+
     const result = await analyzeVideo(
-      va.videoUrl.value,
+      videoUrl,
       va.currentApiKey.value,
       (va.selectedModel.value?.id || 'qwen3.5-plus') as AIModel,
       undefined,
@@ -80,8 +121,8 @@ async function startAnalysis() {
     va.isThinking.value = false
     va.viewMode.value = 'table'
   } catch (e) {
-    errorMessage.value = e instanceof Error ? e.message : '分析失败，请重试'
-    console.error('分析失败:', e)
+    errorMessage.value = e instanceof Error ? e.message : '操作失败，请重试'
+    console.error('操作失败:', e)
     va.analysisStatus.value = 'error'
     va.isThinking.value = false
   }
@@ -102,7 +143,7 @@ async function startAnalysis() {
       <Switch
         id="thinking-mode"
         v-model:checked="enableThinkingModel"
-        :disabled="isAnalyzing"
+        :disabled="isProcessing"
       />
     </div>
 
@@ -116,16 +157,28 @@ async function startAnalysis() {
       请先配置阿里百炼 API Key
     </div>
 
+    <!-- 上传进度 -->
+    <div v-if="isUploading" class="space-y-2">
+      <div class="flex items-center gap-2 text-sm">
+        <Upload class="h-4 w-4 text-muted-foreground" />
+        <span>正在上传视频...</span>
+      </div>
+      <Progress :model-value="uploadProgress" class="w-full" />
+      <p class="text-xs text-muted-foreground text-center">{{ uploadProgress }}%</p>
+    </div>
+
     <!-- 开始分析按钮 -->
     <Button
       variant="default"
       class="w-full"
-      :disabled="!hasVideo || isAnalyzing || !hasApiKey"
+      :disabled="!hasVideo || isProcessing || !hasApiKey"
       @click="startAnalysis"
     >
-      <Loader2 v-if="isAnalyzing" class="mr-2 h-4 w-4 animate-spin" />
+      <Loader2 v-if="isProcessing" class="mr-2 h-4 w-4 animate-spin" />
       <Play v-else class="mr-2 h-4 w-4" />
-      {{ isAnalyzing ? '分析中...' : '开始分析' }}
+      <template v-if="isUploading">上传中...</template>
+      <template v-else-if="isAnalyzing">分析中...</template>
+      <template v-else>开始分析</template>
     </Button>
 
     <!-- 错误提示 -->
