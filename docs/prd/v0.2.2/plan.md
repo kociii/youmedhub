@@ -4,18 +4,18 @@
 
 ---
 
-## 前置准备：Supabase 配置
+## 前置准备：Supabase 配置 ✅ 已完成
 
-> ⚠️ **必须先完成**，否则认证和数据功能无法工作。预计 0.5 天。
+> ✅ **2026-02-24 完成** - 项目已创建，表结构和 RLS 策略已配置。
 
 ### 任务清单
 
-- [ ] **项目创建**: 注册账号 → 创建项目 → 获取 URL/Key
-- [ ] **数据库配置**: 执行建表 SQL（profiles + script_favorites）
-- [ ] **RLS 配置**: 执行安全策略 SQL
-- [ ] **认证配置**: 启用 Email + GitHub OAuth（可选）
-- [ ] **URL 配置**: Site URL + Redirect URLs 白名单
-- [ ] **环境变量**: 本地 `.env` + Vercel Dashboard
+- [x] **项目创建**: 注册账号 → 创建项目 → 获取 URL/Key
+- [x] **数据库配置**: 执行建表 SQL（profiles + user_settings + script_favorites）
+- [x] **RLS 配置**: 执行安全策略 SQL（10 条策略）
+- [x] **认证配置**: 启用 Email + GitHub OAuth
+- [x] **URL 配置**: Site URL + Redirect URLs 白名单
+- [x] **环境变量**: 本地 `.env` 配置完成（Vercel 待配置）
 
 > 📋 所有 SQL 和配置步骤见 [supabase-setup.md](./supabase-setup.md)
 
@@ -266,12 +266,10 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 
 ```env
 # Supabase
-VITE_SUPABASE_URL=https://xxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJxxx...
+VITE_SUPABASE_URL=https://itvxtgubawholioliysr.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
 
-# 模型 API（可选，用户也可在设置中配置）
-VITE_DASHSCOPE_API_KEY=
-VITE_ARK_API_KEY=
+# 模型 API（用户在页面设置中配置，无需在此配置）
 ```
 
 ### Vercel 生产环境
@@ -306,6 +304,7 @@ VITE_ARK_API_KEY=
 ## 里程碑
 
 ```
+[x] Supabase 配置  ──  数据库 + RLS + OAuth 完成 (2026-02-24)
 [ ] v0.2.2-alpha  ──  三栏布局 + 模型接入完成
 [ ] v0.2.2-beta   ──  账号体系 + 收藏功能完成
 [ ] v0.2.2-stable ──  全部功能完成，准备发布

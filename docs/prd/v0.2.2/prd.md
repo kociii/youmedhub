@@ -284,6 +284,16 @@
 
 ## 验证清单
 
+### Supabase 配置 ✅ 已完成
+
+- [x] 项目创建
+- [x] 数据库表（profiles / user_settings / script_favorites）
+- [x] RLS 策略（10 条）
+- [x] Email 认证启用
+- [x] GitHub OAuth 配置
+- [x] URL 白名单配置
+- [x] 本地环境变量
+
 ### 布局与菜单
 
 - [ ] 三栏布局正常
