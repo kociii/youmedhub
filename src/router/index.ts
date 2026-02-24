@@ -5,38 +5,46 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: () => import('@/views/HomePage.vue'),
+      components: {
+        default: () => import('@/views/HomePage.vue'),
+        config: () => import('@/views/HomePage.vue'),
+      },
       meta: { title: '首页' },
     },
     {
       path: '/script',
-      name: 'script',
-      component: () => import('@/views/ScriptPage.vue'),
+      components: {
+        default: () => import('@/views/ScriptPage.vue'),
+        config: () => import('@/components/LeftPanel.vue'),
+      },
       meta: { title: '脚本创作' },
     },
     {
       path: '/favorites',
-      name: 'favorites',
-      component: () => import('@/views/FavoritesPage.vue'),
+      components: {
+        default: () => import('@/views/FavoritesPage.vue'),
+      },
       meta: { title: '我的收藏', requiresAuth: true },
     },
     {
       path: '/settings',
-      name: 'settings',
-      component: () => import('@/views/SettingsPage.vue'),
+      components: {
+        default: () => import('@/views/SettingsPage.vue'),
+      },
       meta: { title: '设置' },
     },
     {
       path: '/profile',
-      name: 'profile',
-      component: () => import('@/views/ProfilePage.vue'),
+      components: {
+        default: () => import('@/views/ProfilePage.vue'),
+      },
       meta: { title: '个人中心', requiresAuth: true },
     },
     {
       path: '/login',
-      name: 'login',
-      component: () => import('@/views/LoginPage.vue'),
+      components: {
+        default: () => import('@/views/LoginPage.vue'),
+      },
       meta: { title: '登录' },
     },
   ],
