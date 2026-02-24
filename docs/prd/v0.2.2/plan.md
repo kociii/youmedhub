@@ -81,6 +81,7 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 
 - [x] 更新 `AnalysisControl.vue` 支持分组下拉
 - [x] 实现 API Key 双渠道配置
+- [x] 创建 `src/config/models.ts` 硬编码模型配置
 - [x] 移除旧模型（仅保留 Qwen3.5 + Doubao）
 
 #### 6. 页面迁移
@@ -111,11 +112,11 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 
 ### 任务清单
 
-#### 1. Supabase 集成
+#### 1. Supabase 集成 ✅
 
-- [ ] 安装 `@supabase/supabase-js`
-- [ ] 创建 `src/lib/supabase.ts`
-- [ ] 配置环境变量
+- [x] 安装 `@supabase/supabase-js`
+- [x] 创建 `src/lib/supabase.ts`
+- [x] 配置环境变量
 - [ ] 测试连接
 
 #### 2. 认证状态管理
