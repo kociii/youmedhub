@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
+import { useAuth } from '@/composables/useAuth'
 import { analyzeVideo, type AIModel } from '@/api/videoAnalysis'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Loader2, Play, Brain } from 'lucide-vue-next'
+import AuthDialog from '@/components/AuthDialog.vue'
 
 // 获取全局状态
 const va = useVideoAnalysis()
+const auth = useAuth()
+
+// 登录弹窗
+const showAuthDialog = ref(false)
 
 // 本地计算属性，用于 template 绑定
 const enableThinkingModel = computed({
@@ -24,6 +30,12 @@ const isError = computed(() => va.analysisStatus.value === 'error')
 const errorMessage = ref('')
 
 async function startAnalysis() {
+  // 检查登录状态
+  if (!auth.isAuthenticated.value) {
+    showAuthDialog.value = true
+    return
+  }
+
   if (!va.currentApiKey.value) {
     errorMessage.value = '请先配置阿里百炼 API Key'
     return
@@ -94,6 +106,11 @@ async function startAnalysis() {
       />
     </div>
 
+    <!-- 登录提示 -->
+    <div v-if="!auth.isAuthenticated.value" class="rounded-md bg-amber-500/10 p-3 text-xs text-amber-600">
+      请先登录后再进行分析
+    </div>
+
     <!-- API Key 状态提示 -->
     <div v-if="!hasApiKey" class="rounded-md bg-muted p-3 text-xs text-muted-foreground">
       请先配置阿里百炼 API Key
@@ -115,5 +132,8 @@ async function startAnalysis() {
     <div v-if="isError" class="rounded-md bg-destructive/10 p-3 text-xs text-destructive">
       {{ errorMessage }}
     </div>
+
+    <!-- 登录弹窗 -->
+    <AuthDialog v-model:open="showAuthDialog" />
   </div>
 </template>
