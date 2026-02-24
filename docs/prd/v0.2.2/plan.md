@@ -58,15 +58,16 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 - [x] 创建 `AppMenu.vue`（侧边菜单）
 - [x] 创建 `UserBar.vue`（用户状态栏）
 - [x] 更新 `App.vue` 使用新布局
-- [x] 实现菜单折叠/展开
-- [ ] 实现响应式适配（移动端底部导航）
+- [x] 菜单路由高亮
+- [x] 左二栏按路由显示/隐藏
+- [ ] 响应式适配（移动端）
 
-#### 3. 路由配置
+#### 3. 路由配置 ✅
 
-- [ ] 安装 `vue-router@4`
-- [ ] 配置路由表
-- [ ] 实现路由懒加载
-- [ ] 创建空白页面占位
+- [x] 安装 `vue-router@4`
+- [x] 配置路由表
+- [x] 实现路由懒加载
+- [x] 创建空白页面占位（Home/Analyze/Create/Favorites/Settings/Profile/Login）
 
 #### 4. OpenAI SDK 兼容层
 
@@ -84,14 +85,14 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 
 #### 6. 页面迁移
 
-- [ ] 创建 `ScriptPage.vue`，迁移现有功能
-- [ ] 创建 `HomePage.vue`（欢迎页占位）
-- [ ] 创建 `SettingsPage.vue`（API Key 配置）
+- [ ] 迁移现有功能到 `AnalyzePage.vue`
+- [ ] 完善 `HomePage.vue`（欢迎页）
+- [ ] 完善 `SettingsPage.vue`（API Key 配置）
 
 ### 验收标准
 
-- [ ] 三栏布局正常显示
-- [ ] 菜单切换正常
+- [x] 三栏布局正常显示
+- [x] 菜单切换正常
 - [ ] Qwen3.5 模型调用正常
 - [ ] Doubao 模型调用正常
 - [ ] 流式输出正常

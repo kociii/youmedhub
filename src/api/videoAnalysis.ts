@@ -1,12 +1,18 @@
 import type { VideoAnalysisResponse, TokenUsage } from '../types/video';
 import { uploadToTemporaryFile, validateVideoFile } from './temporaryFile';
 import { VIDEO_ANALYSIS_PROMPT } from '../prompts/videoAnalysis';
+import * as analysis from './analysis';
+import type { ModelConfig } from '@/lib/openai-client';
 
 // 导出提示词供组件使用
 export { VIDEO_ANALYSIS_PROMPT };
 
-// AI 模型类型
-export type AIModel = 'qwen3-vl-flash' | 'qwen3-vl-plus';
+// 导出模型相关
+export { ALL_MODELS, MODELS_BY_PROVIDER, getModelConfig } from './analysis';
+export type { ModelConfig };
+
+// AI 模型类型（保持兼容）
+export type AIModel = 'qwen3-vl-flash' | 'qwen3-vl-plus' | 'doubao-seed-1-6-flash-250415';
 
 // 流式输出回调类型
 export type StreamCallback = (chunk: string) => void;
@@ -81,7 +87,7 @@ function parseErrorMessage(error: any): string {
   if (message.includes('TooLarge') || message.includes('size') || message.includes('Exceeded limit')) {
     return '视频文件过大，请使用小于 100MB 的视频或检查网络连接';
   }
-  if (message.includes('AuthenticationNotPass')) {
+  if (message.includes('AuthenticationNotPass') || message.includes('401')) {
     return 'API Key 验证失败，请检查 API Key 是否正确';
   }
   if (message.includes('Throttling')) {
@@ -91,7 +97,7 @@ function parseErrorMessage(error: any): string {
   return message || 'API 请求失败，请重试';
 }
 
-// 使用视频 URL 分析（核心分析逻辑）
+// 使用视频 URL 分析（核心分析逻辑）- 使用新接口
 async function analyzeVideoByUrl(
   videoUrl: string,
   apiKey: string,
@@ -103,102 +109,26 @@ async function analyzeVideoByUrl(
 ): Promise<VideoAnalysisResponse> {
   onProgress?.('正在调用 AI 分析视频...');
 
-  const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'video_url',
-              video_url: {
-                url: videoUrl,
-              },
-            },
-            {
-              type: 'text',
-              text: prompt,
-            },
-          ],
-        },
-      ],
-      stream: true, // 启用流式输出
-      stream_options: { include_usage: true }, // 获取 Token 使用信息
-    }),
-  });
-
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(parseErrorMessage(data));
-  }
-
-  onProgress?.('正在接收 AI 分析结果...');
-
-  // 处理流式响应
-  const reader = response.body?.getReader();
-  const decoder = new TextDecoder();
-  let fullContent = '';
-  let chunkCount = 0;
-
-  if (!reader) {
-    throw new Error('无法读取响应流');
-  }
-
-  let buffer = '';
-
   try {
-    while (true) {
-      const { done, value } = await reader.read();
+    const fullContent = await analysis.analyzeVideo({
+      model,
+      apiKey,
+      videoUrl,
+      prompt,
+      onChunk: onStream,
+      onUsage: onTokenUsage,
+    });
 
-      if (done) break;
+    onProgress?.('正在解析分析结果...');
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || ''; // 保留最后一个可能不完整的行
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data: ')) continue;
-
-        const data = trimmed.slice(6);
-        if (data === '[DONE]') continue;
-
-        try {
-          const json = JSON.parse(data);
-          const content = json.choices?.[0]?.delta?.content;
-
-          if (content) {
-            chunkCount++;
-            fullContent += content;
-            onStream?.(content);
-          }
-
-          if (json.usage) {
-            onTokenUsage?.(json.usage);
-          }
-        } catch {
-          // 忽略解析错误，继续处理下一行
-        }
-      }
+    // 将 Markdown 转换为 JSON
+    return parseMarkdownTable(fullContent);
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(parseErrorMessage(error));
     }
-  } finally {
-    reader.releaseLock();
+    throw new Error('AI 分析失败');
   }
-
-  if (!fullContent) {
-    throw new Error('AI 返回内容为空');
-  }
-
-  onProgress?.('正在解析分析结果...');
-
-  // 将 Markdown 转换为 JSON
-  return parseMarkdownTable(fullContent);
 }
 
 // 通过临时文件服务分析视频（主要方法）
