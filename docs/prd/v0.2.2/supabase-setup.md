@@ -235,18 +235,16 @@ WHERE table_schema = 'public';
 | 字段 | 值 |
 |------|-----|
 | Application name | `YouMedHub` |
-| Homepage URL | `http://localhost:5173` (开发) / `https://your-domain.vercel.app` (生产) |
+| Homepage URL | `https://www.youmedhub.com` |
 | Authorization callback URL | 见下方 |
 
-**开发环境回调 URL：**
+**回调 URL（支持多环境）：**
 ```
 http://localhost:5173/auth/v1/callback
+https://www.youmedhub.com/auth/v1/callback
 ```
 
-**生产环境回调 URL：**
-```
-https://your-domain.vercel.app/auth/v1/callback
-```
+> 💡 GitHub OAuth App 支持配置多个回调 URL，生产和开发环境可共用同一个 App。
 
 4. 点击 `Register application`
 5. 记录 `Client ID` 和 `Client Secret`
@@ -255,14 +253,26 @@ https://your-domain.vercel.app/auth/v1/callback
 
 1. 进入 `Authentication` → `Providers`
 2. 找到 `GitHub`，点击启用
-3. 填写：
-
-| 字段 | 值 |
-|------|-----|
-| Client ID | 从 GitHub 获取 |
-| Client Secret | 从 GitHub 获取 |
-
+3. 填写从 GitHub 获取的 `Client ID` 和 `Client Secret`
 4. 点击 `Save`
+
+#### 步骤 3：配置 Supabase URL 白名单
+
+1. 进入 `Authentication` → `URL Configuration`
+2. 配置 `Site URL`（生产环境）：
+
+| 环境 | 值 |
+|------|-----|
+| 生产 | `https://www.youmedhub.com` |
+
+3. 配置 `Redirect URLs`（允许列表）：
+
+```
+http://localhost:5173/**
+https://www.youmedhub.com/**
+```
+
+> ⚠️ Supabase 的 Site URL 是全局的，不支持按环境切换。开发时本地调试 OAuth 会跳转到生产地址，但登录后可以手动切回本地测试。
 
 ### 3.3 配置邮件模板（可选）
 
