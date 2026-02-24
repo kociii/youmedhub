@@ -69,13 +69,13 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 - [x] 实现路由懒加载
 - [x] 创建空白页面占位（Home/Analyze/Create/Favorites/Settings/Profile/Login）
 
-#### 4. OpenAI SDK 兼容层
+#### 4. OpenAI SDK 兼容层 ✅
 
-- [ ] 创建 `src/lib/openai-client.ts`
-- [ ] 创建 `src/api/providers/aliyun.ts`
-- [ ] 创建 `src/api/providers/volcengine.ts`
-- [ ] 创建 `src/api/analysis.ts`（统一入口）
-- [ ] 重构现有 `videoAnalysis.ts` 使用新接口
+- [x] 创建 `src/lib/openai-client.ts`
+- [x] 创建 `src/api/providers/aliyun.ts`
+- [x] 创建 `src/api/providers/volcengine.ts`
+- [x] 创建 `src/api/analysis.ts`（统一入口）
+- [x] 重构现有 `videoAnalysis.ts` 使用新接口
 
 #### 5. 模型选择 UI
 
