@@ -17,6 +17,14 @@ export interface ModelConfig {
  */
 export const AVAILABLE_MODELS: ModelConfig[] = [
   {
+    id: 'qwen3.5-flash',
+    name: 'Qwen3.5 Flash',
+    provider: 'aliyun',
+    providerName: '阿里百炼',
+    description: '通义千问 3.5 快速版',
+    capabilities: ['video', 'image', 'text'],
+  },
+  {
     id: 'qwen3.5-plus',
     name: 'Qwen3.5 Plus',
     provider: 'aliyun',
@@ -36,7 +44,7 @@ export const MODELS_BY_PROVIDER = {
 /**
  * 默认模型 ID
  */
-export const DEFAULT_MODEL_ID = 'qwen3.5-plus'
+export const DEFAULT_MODEL_ID = 'qwen3.5-flash'
 
 /**
  * 根据 ID 获取模型配置

@@ -13,18 +13,13 @@ export interface VideoAnalysisOptions {
   prompt: string
   onChunk?: (chunk: string) => void
   onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
-  // 模型参数
-  temperature?: number
-  top_p?: number
-  frequency_penalty?: number
-  presence_penalty?: number
   // 思考模式
   enableThinking?: boolean
   onReasoningChunk?: (chunk: string) => void
 }
 
 export async function analyzeVideo(options: VideoAnalysisOptions): Promise<string> {
-  const { apiKey, model, videoUrl, prompt, onChunk, onUsage, temperature, top_p, frequency_penalty, presence_penalty, enableThinking, onReasoningChunk } = options
+  const { apiKey, model, videoUrl, prompt, onChunk, onUsage, enableThinking, onReasoningChunk } = options
 
   return streamChat({
     apiKey,
@@ -51,10 +46,6 @@ export async function analyzeVideo(options: VideoAnalysisOptions): Promise<strin
     ],
     onChunk,
     onUsage,
-    temperature,
-    top_p,
-    frequency_penalty,
-    presence_penalty,
     enableThinking,
     onReasoningChunk,
   })
@@ -68,18 +59,13 @@ export interface ImageAnalysisOptions {
   prompt: string
   onChunk?: (chunk: string) => void
   onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
-  // 模型参数
-  temperature?: number
-  top_p?: number
-  frequency_penalty?: number
-  presence_penalty?: number
   // 思考模式
   enableThinking?: boolean
   onReasoningChunk?: (chunk: string) => void
 }
 
 export async function analyzeImage(options: ImageAnalysisOptions): Promise<string> {
-  const { apiKey, model, imageUrl, prompt, onChunk, onUsage, temperature, top_p, frequency_penalty, presence_penalty, enableThinking, onReasoningChunk } = options
+  const { apiKey, model, imageUrl, prompt, onChunk, onUsage, enableThinking, onReasoningChunk } = options
 
   return streamChat({
     apiKey,
@@ -95,10 +81,6 @@ export async function analyzeImage(options: ImageAnalysisOptions): Promise<strin
     ],
     onChunk,
     onUsage,
-    temperature,
-    top_p,
-    frequency_penalty,
-    presence_penalty,
     enableThinking,
     onReasoningChunk,
   })
@@ -111,18 +93,13 @@ export interface TextGenerationOptions {
   prompt: string
   onChunk?: (chunk: string) => void
   onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
-  // 模型参数
-  temperature?: number
-  top_p?: number
-  frequency_penalty?: number
-  presence_penalty?: number
   // 思考模式
   enableThinking?: boolean
   onReasoningChunk?: (chunk: string) => void
 }
 
 export async function generateText(options: TextGenerationOptions): Promise<string> {
-  const { apiKey, model, prompt, onChunk, onUsage, temperature, top_p, frequency_penalty, presence_penalty, enableThinking, onReasoningChunk } = options
+  const { apiKey, model, prompt, onChunk, onUsage, enableThinking, onReasoningChunk } = options
 
   return streamChat({
     apiKey,
@@ -132,10 +109,46 @@ export async function generateText(options: TextGenerationOptions): Promise<stri
     ],
     onChunk,
     onUsage,
-    temperature,
-    top_p,
-    frequency_penalty,
-    presence_penalty,
+    enableThinking,
+    onReasoningChunk,
+  })
+}
+
+// 多图片 + 文本生成（流式）
+export interface MultiImageTextOptions {
+  apiKey: string
+  model: string
+  prompt: string
+  imageUrls: string[]
+  onChunk?: (chunk: string) => void
+  onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
+  // 思考模式
+  enableThinking?: boolean
+  onReasoningChunk?: (chunk: string) => void
+}
+
+export async function generateWithImages(options: MultiImageTextOptions): Promise<string> {
+  const { apiKey, model, prompt, imageUrls, onChunk, onUsage, enableThinking, onReasoningChunk } = options
+
+  // 构建消息内容
+  const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = []
+
+  // 添加图片
+  for (const url of imageUrls) {
+    content.push({ type: 'image_url', image_url: { url } })
+  }
+
+  // 添加文本
+  content.push({ type: 'text', text: prompt })
+
+  return streamChat({
+    apiKey,
+    model,
+    messages: [
+      { role: 'user', content },
+    ],
+    onChunk,
+    onUsage,
     enableThinking,
     onReasoningChunk,
   })
@@ -146,7 +159,7 @@ export async function generateTextSync(options: Omit<TextGenerationOptions, 'onC
   content: string
   usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
 }> {
-  const { apiKey, model, prompt, temperature, top_p, frequency_penalty, presence_penalty } = options
+  const { apiKey, model, prompt } = options
 
   return chat({
     apiKey,
@@ -154,9 +167,5 @@ export async function generateTextSync(options: Omit<TextGenerationOptions, 'onC
     messages: [
       { role: 'user', content: prompt },
     ],
-    temperature,
-    top_p,
-    frequency_penalty,
-    presence_penalty,
   })
 }

@@ -4,11 +4,17 @@ import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 import { useAuth } from '@/composables/useAuth'
 import { analyzeVideo, type AIModel } from '@/api/videoAnalysis'
 import { uploadToTemporaryFile } from '@/api/temporaryFile'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
+import { AVAILABLE_MODELS } from '@/config/models'
 import { Progress } from '@/components/ui/progress'
-import { Loader2, Play, Brain, Upload } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Upload, Brain } from 'lucide-vue-next'
 import AuthDialog from '@/components/AuthDialog.vue'
 
 // 获取全局状态
@@ -22,14 +28,26 @@ const showAuthDialog = ref(false)
 const isUploading = ref(false)
 const uploadProgress = ref(0)
 
-// 本地计算属性，用于 template 绑定
-const enableThinkingModel = computed({
+// 模型选择
+const selectedModelId = computed({
+  get: () => va.selectedModel.value?.id || 'qwen3.5-flash',
+  set: (val: string) => {
+    const model = AVAILABLE_MODELS.find(m => m.id === val)
+    if (model) {
+      va.setSelectedModel(model)
+    }
+  }
+})
+
+// 思考模式开关
+const enableThinking = computed({
   get: () => va.enableThinking.value,
-  set: (val: boolean) => { va.enableThinking.value = val }
+  set: (val: boolean) => {
+    va.enableThinking.value = val
+  }
 })
 
 const isAnalyzing = computed(() => va.isAnalyzing.value)
-const hasVideo = computed(() => va.hasVideo.value)
 const hasApiKey = computed(() => !!va.currentApiKey.value)
 const isError = computed(() => va.analysisStatus.value === 'error')
 const isProcessing = computed(() => isUploading.value || isAnalyzing.value)
@@ -52,6 +70,8 @@ async function uploadVideo(): Promise<string> {
     })
     va.videoUrl.value = result.downloadLink
     va.uploadStatus.value = 'success'
+    // 上传完成后释放本地预览 URL，使用远程 URL
+    va.revokeLocalVideoUrl()
     return result.downloadLink
   } catch (e) {
     va.uploadStatus.value = 'error'
@@ -92,30 +112,28 @@ async function startAnalysis() {
     va.tokenUsage.value = null
     va.viewMode.value = 'markdown'
 
-    const result = await analyzeVideo(
-      videoUrl,
-      va.currentApiKey.value,
-      (va.selectedModel.value?.id || 'qwen3.5-plus') as AIModel,
-      undefined,
-      undefined,
-      (chunk) => {
+    // 调试日志
+    console.log('[startAnalysis] enableThinking:', va.enableThinking.value)
+
+    const result = await analyzeVideo({
+      source: videoUrl,
+      apiKey: va.currentApiKey.value,
+      model: (va.selectedModel.value?.id || 'qwen3.5-flash') as AIModel,
+      mode: 'analyze',
+      onStream: (chunk) => {
         va.markdownContent.value += chunk
       },
-      (usage) => {
+      onTokenUsage: (usage) => {
         va.tokenUsage.value = usage
       },
-      {
-        temperature: va.analysisParams.value.temperature,
-        top_p: va.analysisParams.value.top_p,
-        frequency_penalty: va.analysisParams.value.frequency_penalty,
-        presence_penalty: va.analysisParams.value.presence_penalty,
+      params: {
         enableThinking: va.enableThinking.value,
       },
-      (chunk) => {
+      onReasoning: (chunk) => {
         va.thinkingContent.value += chunk
         va.isThinking.value = true
       },
-    )
+    })
     va.scriptItems.value = result.rep
     va.analysisStatus.value = 'success'
     va.isThinking.value = false
@@ -127,24 +145,46 @@ async function startAnalysis() {
     va.isThinking.value = false
   }
 }
+
+// 暴露给父组件
+defineExpose({
+  startAnalysis,
+  isUploading,
+})
 </script>
 
 <template>
   <div class="space-y-4">
-    <!-- 思考模式开关 -->
-    <div class="flex items-center justify-between rounded-lg border p-3">
-      <div class="flex items-center gap-2">
-        <Brain class="h-4 w-4 text-muted-foreground" />
-        <div>
-          <Label for="thinking-mode" class="text-sm font-medium cursor-pointer">思考模式</Label>
-          <p class="text-xs text-muted-foreground">启用后模型会先思考再回答</p>
-        </div>
-      </div>
-      <Switch
-        id="thinking-mode"
-        v-model:checked="enableThinkingModel"
+    <!-- 模型选择 + 思考模式（一行，各占 50%） -->
+    <div class="flex items-center gap-3">
+      <!-- 模型选择 -->
+      <Select v-model="selectedModelId" :disabled="isProcessing" class="flex-1">
+        <SelectTrigger class="h-8 w-full">
+          <SelectValue placeholder="选择模型" />
+        </SelectTrigger>
+        <SelectContent class="max-w-[50vw]">
+          <SelectItem
+            v-for="model in AVAILABLE_MODELS"
+            :key="model.id"
+            :value="model.id"
+          >
+            {{ model.name }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+
+      <!-- 思考模式按钮 -->
+      <Button
+        variant="outline"
+        size="sm"
+        class="h-8 gap-1.5 px-3 flex-1"
+        :class="enableThinking && 'bg-purple-100 border-purple-300 hover:bg-purple-200'"
         :disabled="isProcessing"
-      />
+        @click="enableThinking = !enableThinking"
+      >
+        <Brain class="h-4 w-4 text-purple-500" />
+        <span class="text-purple-700">思考</span>
+      </Button>
     </div>
 
     <!-- 登录提示 -->
@@ -166,20 +206,6 @@ async function startAnalysis() {
       <Progress :model-value="uploadProgress" class="w-full" />
       <p class="text-xs text-muted-foreground text-center">{{ uploadProgress }}%</p>
     </div>
-
-    <!-- 开始分析按钮 -->
-    <Button
-      variant="default"
-      class="w-full"
-      :disabled="!hasVideo || isProcessing || !hasApiKey"
-      @click="startAnalysis"
-    >
-      <Loader2 v-if="isProcessing" class="mr-2 h-4 w-4 animate-spin" />
-      <Play v-else class="mr-2 h-4 w-4" />
-      <template v-if="isUploading">上传中...</template>
-      <template v-else-if="isAnalyzing">分析中...</template>
-      <template v-else>开始分析</template>
-    </Button>
 
     <!-- 错误提示 -->
     <div v-if="isError" class="rounded-md bg-destructive/10 p-3 text-xs text-destructive">

@@ -30,7 +30,7 @@ const showAuthDialog = ref(false)
 // 主菜单
 const mainMenuItems = [
   { name: 'home', label: '首页', icon: Home, path: '/' },
-  { name: 'analyze', label: '视频脚本解析', icon: Sparkles, path: '/analyze' },
+  { name: 'analyze', label: '拆解脚本', icon: Sparkles, path: '/analyze' },
   { name: 'create', label: '脚本生成', icon: FileText, path: '/create' },
 ]
 

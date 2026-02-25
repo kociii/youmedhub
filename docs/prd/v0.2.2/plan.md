@@ -1,6 +1,26 @@
 # v0.2.2 开发计划
 
 > 📘 **详细配置指南**: [supabase-setup.md](./supabase-setup.md) - 包含完整 SQL、步骤截图、常见问题
+>
+> 📋 **后续规划**: [产品路线图](../../roadmap.md) - 记录 v0.3.0+ 的功能规划
+
+---
+
+## 版本状态
+
+```
+v0.2.2 ✅ 已发布 (2026-02-25)
+```
+
+**包含功能**：
+- ✅ 视频分析（AI 拆解脚本）
+- ✅ 脚本生成（从零创作 + 参考生成）
+- ✅ 用户认证（邮箱注册/登录）
+- ✅ 收藏管理（云端存储）
+- ✅ 个人中心（昵称修改）
+- ✅ Excel 导出
+
+**未完成功能已移至**：[产品路线图](../../roadmap.md)
 
 ---
 
@@ -24,13 +44,13 @@
 ## 版本规划
 
 ```
-v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
+v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable ✅
    │                  │                 │
-   │                  │                 └── 完整功能 + 优化
+   │                  │                 └── 当前版本（已发布）
    │                  │
-   │                  └── 账号体系 + 收藏
+   │                  └── 账号体系 + 收藏 ✅
    │
-   └── 三栏布局 + 模型接入 + 基础功能
+   └── 三栏布局 + 模型接入 + 基础功能 ✅
 ```
 
 ---
@@ -62,7 +82,8 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 - [x] 更新 `App.vue` 使用新布局
 - [x] 菜单路由高亮
 - [x] 左二栏按路由显示/隐藏
-- [ ] 响应式适配（移动端）
+
+> 📋 响应式适配移至 [路线图 v0.4.0](../../roadmap.md#移动端适配)
 
 #### 3. 路由配置 ✅
 
@@ -115,11 +136,13 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 
 ---
 
-## v0.2.2-beta：账号体系
+## v0.2.2-beta：账号体系 ✅ 已完成
 
 ### 阶段目标
 
 完成用户认证、脚本收藏。
+
+> ✅ **2026-02-25 完成** - 账号体系、收藏功能、个人中心开发完成。
 
 ### 前置依赖
 
@@ -178,103 +201,77 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 - [x] 实现加载脚本到编辑器
 - [x] 实现删除收藏
 
-#### 8. 个人中心页面
+#### 8. 个人中心页面 ✅
 
-- [ ] 完善 `ProfilePage.vue`
-- [ ] 实现个人信息展示
-- [ ] 实现昵称修改
-- [ ] 实现最近收藏展示
+- [x] 完善 `ProfilePage.vue`
+- [x] 实现个人信息展示
+- [x] 实现昵称修改
+- [x] ~~实现最近收藏展示~~ (已移除，收藏列表在收藏页面展示)
 
-### 验收标准
+### 验收标准 ✅
 
-- [ ] 邮箱注册成功
-- [ ] 邮箱登录成功
-- [ ] GitHub OAuth 登录成功
-- [ ] 登录状态刷新后保持
-- [ ] 收藏脚本成功
-- [ ] 收藏列表展示正常
-- [ ] 加载收藏脚本正常
-- [ ] 删除收藏正常
-- [ ] 路由守卫正常
+- [x] 邮箱注册成功
+- [x] 邮箱登录成功
+- [ ] GitHub OAuth 登录成功（需线上环境测试）
+- [x] 登录状态刷新后保持
+- [x] 收藏脚本成功
+- [x] 收藏列表展示正常
+- [x] 加载收藏脚本正常
+- [x] 删除收藏正常
+- [x] 路由守卫正常
+- [x] 个人中心展示正常（不显示最近收藏）
+- [x] 昵称修改正常
 
 ---
 
-## v0.2.2-stable：功能完善
+## v0.2.2-stable：功能完善 ✅ 已完成
 
 ### 阶段目标
 
-完成提示词优化、多输入源生成、收藏引用、结果跳转、分镜图生成。
+完成提示词优化、首页内容、基础脚本生成。
+
+> ✅ **2026-02-25 完成** - 核心功能已实现，未完成功能移至路线图。
 
 ### 任务清单
 
-#### 1. 提示词优化
+#### 1. 提示词优化 ✅
 
-- [ ] 优化时间连续性规则
-- [ ] 优化内容衔接规则
-- [ ] 优化输出格式稳定性
-- [ ] 添加三种模式的差异化提示词
+- [x] 优化时间连续性规则
+- [x] 优化内容衔接规则
+- [x] 优化输出格式稳定性
+- [x] 保留现有生成提示词基线
 
-#### 2. 多输入源生成
+#### 2. 脚本生成基础功能 ✅
 
-- [ ] 创建 `ImageUploader.vue` 组件
-- [ ] 扩展图片上传 API
-- [ ] 创建 `CreateModePanel.vue`
-- [ ] 创建 `ReferenceModePanel.vue`
-- [ ] 更新 `LeftPanel.vue` 支持 Tabs 切换
+- [x] 创建 `ImageUploader.vue` 组件
+- [x] 扩展图片上传 API（useVideoAnalysis 添加图片状态）
+- [x] 从零创作模式
+- [x] 参考生成模式
+- [x] 分析结果跳转生成
 
-#### 3. 收藏脚本引用
+> 📋 统一输入流程移至 [路线图 v0.3.0](../../roadmap.md#统一输入流程)
 
-- [ ] 在参考生成模式添加来源选择
-- [ ] 实现收藏脚本选择下拉
-- [ ] 实现从收藏加载到参考脚本
+#### 3. 首页内容 ✅
 
-#### 4. 分析结果跳转生成
+- [x] 设计欢迎页内容
+- [x] 实现功能入口（拆解脚本、脚本生成）
+- [x] 添加"即将推出"功能预告
 
-- [ ] 在 ResultToolbar 添加「基于此生成」按钮
-- [ ] 实现跳转到参考生成模式
-- [ ] 自动填充当前脚本为参考
+#### 4. 性能优化（部分完成）
 
-#### 5. 分镜图生成
+- [x] 路由懒加载
 
-- [ ] 创建 `src/api/imageGeneration.ts`
-- [ ] 实现异步任务创建
-- [ ] 实现任务轮询
-- [ ] 创建 `src/utils/imageQueue.ts`（并发控制）
-- [ ] 更新 `ScriptTable.vue` 添加分镜图列
-- [ ] 更新 `ResultToolbar.vue` 添加生成按钮
-- [ ] 实现单个/批量生成
+> 📋 组件懒加载、图片懒加载移至 [路线图 v0.4.0](../../roadmap.md#性能优化)
 
-#### 6. 首页内容
+### 验收标准 ✅
 
-- [ ] 设计欢迎页内容
-- [ ] 实现使用指南
-- [ ] 实现快速开始入口
-
-#### 7. 性能优化
-
-- [ ] 路由懒加载
-- [ ] 组件懒加载
-- [ ] 图片懒加载
-
-#### 8. 测试与修复
-
-- [ ] 功能测试
-- [ ] 响应式测试
-- [ ] 兼容性测试
-- [ ] Bug 修复
-
-### 验收标准
-
-- [ ] 时间戳完全连续
-- [ ] 三种模式切换正常
-- [ ] 图片上传正常
-- [ ] 参考脚本加载正常
-- [ ] 收藏脚本引用正常
-- [ ] 结果跳转生成正常
-- [ ] 分镜图批量生成正常
-- [ ] 分镜图单个重新生成正常
-- [ ] 构建通过
-- [ ] Vercel 部署正常
+- [x] 时间戳完全连续
+- [x] 图片上传正常（UI）
+- [x] 从零创作模式正常
+- [x] 参考生成模式正常
+- [x] 分析结果跳转生成正常
+- [x] 首页功能预告展示正常
+- [x] 构建通过
 
 ---
 
@@ -284,7 +281,7 @@ v0.2.2-alpha  ──▶  v0.2.2-beta  ──▶  v0.2.2-stable
 
 ```env
 # Supabase
-VITE_SUPABASE_URL=https://itvxtgubawholioliysr.supabase.co
+VITE_SUPABASE_URL=https://xxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
 
 # 模型 API（用户在页面设置中配置，无需在此配置）
@@ -296,34 +293,85 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
 
 ---
 
-## 时间估算
-
-| 版本 | 预计工作量 | 说明 |
-|------|-----------|------|
-| Supabase 配置 | 0.5 天 | 一次性配置 |
-| v0.2.2-alpha | 2-3 天 | 基础架构 |
-| v0.2.2-beta | 2-3 天 | 账号收藏 |
-| v0.2.2-stable | 2-3 天 | 功能完善 |
-| **总计** | **7-10 天** | - |
-
----
-
-## 风险与依赖
-
-| 风险/依赖 | 影响 | 缓解措施 |
-|----------|------|----------|
-| Supabase 服务稳定性 | 认证功能不可用 | 监控状态页，准备降级方案 |
-| 阿里百炼 API 变更 | 模型调用失败 | 使用 OpenAI 兼容格式降低耦合 |
-| OAuth 配置错误 | 第三方登录失败 | 提供邮箱登录作为备选 |
-| RLS 配置错误 | 数据泄露风险 | 开发环境充分测试 |
-
----
-
 ## 里程碑
 
 ```
 [x] Supabase 配置  ──  数据库 + RLS + OAuth 完成 (2026-02-24)
 [x] v0.2.2-alpha  ──  三栏布局 + 模型接入完成 (2026-02-24)
-[ ] v0.2.2-beta   ──  账号体系 + 收藏功能完成
-[ ] v0.2.2-stable ──  全部功能完成，准备发布
+[x] v0.2.2-beta   ──  账号体系 + 收藏功能完成 (2026-02-25)
+[x] v0.2.2-stable ──  核心功能完成，版本发布 (2026-02-25)
+```
+
+---
+
+## 新增组件清单
+
+### v0.2.2 新增组件
+
+| 组件 | 路径 | 功能 |
+|------|------|------|
+| AppLayout | `src/components/layout/AppLayout.vue` | 三栏布局容器 |
+| AppMenu | `src/components/layout/AppMenu.vue` | 侧边导航菜单 |
+| UserBar | `src/components/layout/UserBar.vue` | 用户状态栏 |
+| AuthDialog | `src/components/AuthDialog.vue` | 登录/注册弹窗 |
+| FavoriteDialog | `src/components/FavoriteDialog.vue` | 收藏确认弹窗 |
+| ThinkingPanel | `src/components/ThinkingPanel.vue` | 思考过程面板 |
+| CreateModePanel | `src/components/CreateModePanel.vue` | 从零创作面板 |
+| ReferenceModePanel | `src/components/ReferenceModePanel.vue` | 参考生成面板 |
+| ImageUploader | `src/components/ImageUploader.vue` | 图片上传组件 |
+| useAuth | `src/composables/useAuth.ts` | 认证状态管理 |
+| useFavorites | `src/composables/useFavorites.ts` | 收藏功能管理 |
+| useProfile | `src/composables/useProfile.ts` | 个人资料管理 |
+
+---
+
+## 状态管理架构
+
+### useVideoAnalysis
+
+核心全局状态（模块级单例）：
+
+```typescript
+// 视频状态
+videoFile, videoUrl, localVideoUrl, uploadProgress, uploadStatus
+
+// 图片状态（参考生成）
+imageFile, imageUrl, localImageUrl
+
+// 分析结果
+markdownContent, scriptItems, tokenUsage
+analysisMode, viewMode
+
+// 模型配置
+selectedModel, enableThinking, thinkingContent
+
+// 分析结果跳转预填
+pendingReference
+```
+
+### useAuth
+
+认证状态：
+
+```typescript
+user, isAuthenticated, userEmail, userName, userAvatar
+signIn, signUp, signInWithGitHub, signOut
+```
+
+### useFavorites
+
+收藏状态：
+
+```typescript
+favorites, loading
+loadFavorites, addFavorite, removeFavorite, getFavoriteById
+```
+
+### useProfile
+
+个人资料状态：
+
+```typescript
+profile, nickname, avatarUrl
+loadProfile, updateNickname, updateAvatarUrl
 ```

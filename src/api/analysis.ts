@@ -28,11 +28,6 @@ export interface AnalyzeVideoOptions {
   prompt: string
   onChunk?: (chunk: string) => void
   onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
-  // 模型参数
-  temperature?: number
-  top_p?: number
-  frequency_penalty?: number
-  presence_penalty?: number
   // 思考模式
   enableThinking?: boolean
   onReasoningChunk?: (chunk: string) => void
@@ -51,11 +46,6 @@ export interface AnalyzeImageOptions {
   prompt: string
   onChunk?: (chunk: string) => void
   onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
-  // 模型参数
-  temperature?: number
-  top_p?: number
-  frequency_penalty?: number
-  presence_penalty?: number
   // 思考模式
   enableThinking?: boolean
   onReasoningChunk?: (chunk: string) => void
@@ -73,11 +63,6 @@ export interface GenerateTextOptions {
   prompt: string
   onChunk?: (chunk: string) => void
   onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
-  // 模型参数
-  temperature?: number
-  top_p?: number
-  frequency_penalty?: number
-  presence_penalty?: number
   // 思考模式
   enableThinking?: boolean
   onReasoningChunk?: (chunk: string) => void
@@ -93,4 +78,22 @@ export async function generateTextSync(
   options: Omit<GenerateTextOptions, 'onChunk'>
 ): Promise<{ content: string; usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number } }> {
   return aliyun.generateTextSync(options)
+}
+
+// 多图片 + 文本生成选项
+export interface GenerateWithImagesOptions {
+  model: string
+  apiKey: string
+  prompt: string
+  imageUrls: string[]
+  onChunk?: (chunk: string) => void
+  onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
+  // 思考模式
+  enableThinking?: boolean
+  onReasoningChunk?: (chunk: string) => void
+}
+
+// 多图片 + 文本生成（流式）
+export async function generateWithImages(options: GenerateWithImagesOptions): Promise<string> {
+  return aliyun.generateWithImages(options)
 }

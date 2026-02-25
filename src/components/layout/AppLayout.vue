@@ -2,13 +2,32 @@
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import AppMenu from './AppMenu.vue'
+import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 
 const route = useRoute()
+const va = useVideoAnalysis()
 const isMenuCollapsed = ref(false)
 
-// 只有视频脚本解析和脚本生成页需要左二栏
+// 只有拆解脚本和脚本生成页需要左二栏
 const showConfigPanel = computed(() => {
   return route.meta.hasConfig === true
+})
+
+// 根据路由显示对应的功能名称
+const panelTitle = computed(() => {
+  const titles: Record<string, string> = {
+    analyze: '拆解脚本',
+    create: '脚本生成',
+  }
+  return titles[route.name as string] || '配置'
+})
+
+// 配置栏宽度：创建页面在生成前展开，生成后收起
+const configPanelWidth = computed(() => {
+  if (route.name === 'create') {
+    return va.isConfigPanelExpanded.value ? 'w-[480px]' : 'w-80'
+  }
+  return 'w-80'
 })
 </script>
 
@@ -25,12 +44,13 @@ const showConfigPanel = computed(() => {
     <!-- 左二：配置区（仅解析和生成页显示） -->
     <aside
       v-if="showConfigPanel"
-      class="flex w-80 flex-col border-r bg-muted/30"
+      class="flex flex-col border-r bg-muted/30 transition-all duration-300"
+      :class="configPanelWidth"
     >
       <div class="flex h-full flex-col">
         <!-- 配置区头部 -->
         <div class="flex h-12 items-center border-b px-4">
-          <span class="text-sm font-medium">配置</span>
+          <span class="text-sm font-medium">{{ panelTitle }}</span>
         </div>
         <!-- 配置区内容 -->
         <div class="flex-1 overflow-y-auto">

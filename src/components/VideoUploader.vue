@@ -7,9 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Upload, Link } from 'lucide-vue-next'
 
-const {
-  videoFile, videoUrl, uploadStatus, resetAnalysis, clearVideoFile,
-} = useVideoAnalysis()
+const va = useVideoAnalysis()
 
 const dragOver = ref(false)
 const errorMsg = ref('')
@@ -50,10 +48,18 @@ async function handleFile(file: File) {
   const durationOk = await checkDuration(file)
   if (!durationOk) return
 
-  // 只保存文件，不立即上传
-  videoFile.value = file
-  uploadStatus.value = 'idle'
-  resetAnalysis()
+  // 释放旧的 object URL
+  if (va.localVideoUrl.value) {
+    URL.revokeObjectURL(va.localVideoUrl.value)
+  }
+
+  // 创建本地预览 URL
+  va.localVideoUrl.value = URL.createObjectURL(file)
+
+  // 保存文件，不立即上传
+  va.videoFile.value = file
+  va.uploadStatus.value = 'idle'
+  va.resetAnalysis()
 }
 
 function onDrop(e: DragEvent) {
@@ -77,30 +83,30 @@ function handleUrlInput() {
     return
   }
   errorMsg.value = ''
-  videoUrl.value = urlInput.value.trim()
-  uploadStatus.value = 'success'
-  videoFile.value = null // URL 方式不需要上传
-  resetAnalysis()
+  va.videoUrl.value = urlInput.value.trim()
+  va.uploadStatus.value = 'success'
+  va.videoFile.value = null // URL 方式不需要上传
+  va.resetAnalysis()
 }
 
 // 清除视频文件
 function handleClearVideo() {
-  clearVideoFile()
+  va.clearVideoFile()
   errorMsg.value = ''
 }
 </script>
 
 <template>
   <Card
-    class="flex flex-col items-center justify-center border-2 border-dashed p-6 transition-colors"
+    class="flex flex-col items-center justify-center border-2 border-dashed p-6 transition-colors shadow-none"
     :class="dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'"
     @dragover.prevent="dragOver = true"
     @dragleave="dragOver = false"
     @drop.prevent="onDrop"
   >
     <!-- 已选择文件提示 -->
-    <div v-if="videoFile" class="text-center">
-      <p class="text-sm font-medium text-foreground">{{ videoFile.name }}</p>
+    <div v-if="va.videoFile.value" class="text-center">
+      <p class="text-sm font-medium text-foreground">{{ va.videoFile.value.name }}</p>
       <p class="mt-1 text-xs text-muted-foreground">
         已选择，点击「开始分析」上传
       </p>

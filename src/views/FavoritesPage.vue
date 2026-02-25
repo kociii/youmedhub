@@ -81,6 +81,10 @@ const groupedFavorites = computed(() => {
 
 // 加载到编辑器
 function handleLoad(item: FavoriteItem) {
+  // 回填视频链接
+  if (item.source_url) {
+    videoAnalysis.videoUrl.value = item.source_url
+  }
   videoAnalysis.markdownContent.value = item.raw_markdown
   videoAnalysis.scriptItems.value = item.script_data
   videoAnalysis.viewMode.value = 'table'

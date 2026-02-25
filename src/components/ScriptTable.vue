@@ -8,17 +8,17 @@ import {
 } from '@/components/ui/table'
 import { Clock } from 'lucide-vue-next'
 
-const { scriptItems, videoUrl } = useVideoAnalysis()
+const va = useVideoAnalysis()
 
 const shotTypeColor = 'bg-blue-100 text-blue-700'
 const cameraMovementColor = 'bg-amber-100 text-amber-700'
 
-function cleanBr(value: string): string {
-  return value.replace(/<br\s*\/?>/gi, '\n')
+function cleanBr(value: string | undefined): string {
+  return (value || '').replace(/<br\s*\/?>/gi, '\n')
 }
 
 const processedItems = computed(() =>
-  scriptItems.value.map(item => ({
+  va.scriptItems.value.map(item => ({
     ...item,
     visualContent: cleanBr(item.visualContent),
     shootingGuide: cleanBr(item.shootingGuide),
@@ -27,6 +27,8 @@ const processedItems = computed(() =>
     audio: cleanBr(item.audio),
   }))
 )
+
+const isAnalyzeMode = computed(() => va.analysisMode.value === 'analyze')
 </script>
 
 <template>
@@ -42,7 +44,12 @@ const processedItems = computed(() =>
           <TableHead class="min-w-[100px] text-xs">口播/台词</TableHead>
           <TableHead class="min-w-[80px] text-xs">音效/BGM</TableHead>
           <TableHead class="w-28 text-center text-xs">时间</TableHead>
-          <TableHead class="w-48 text-center text-xs">视频预览</TableHead>
+          <TableHead
+            v-if="isAnalyzeMode"
+            class="w-48 text-center text-xs"
+          >
+            视频预览
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -72,9 +79,9 @@ const processedItems = computed(() =>
               </span>
             </div>
           </TableCell>
-          <TableCell class="max-h-[300px] text-center">
+          <TableCell v-if="isAnalyzeMode" class="max-h-[300px] text-center">
             <VideoSegmentPlayer
-              :src="videoUrl"
+              :src="va.videoUrl.value"
               :start-time="item.startTime"
               :end-time="item.endTime"
             />

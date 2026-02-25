@@ -16,11 +16,6 @@ export interface StreamOptions {
   }>
   onChunk?: (chunk: string) => void
   onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) => void
-  // 模型参数
-  temperature?: number
-  top_p?: number
-  frequency_penalty?: number
-  presence_penalty?: number
   // 思考模式参数
   enableThinking?: boolean
   // 思考内容回调
@@ -29,7 +24,7 @@ export interface StreamOptions {
 
 // 执行流式请求
 export async function streamChat(options: StreamOptions): Promise<string> {
-  const { apiKey, model, messages, onChunk, onUsage, temperature, top_p, frequency_penalty, presence_penalty, enableThinking, onReasoningChunk } = options
+  const { apiKey, model, messages, onChunk, onUsage, enableThinking, onReasoningChunk } = options
   const endpoint = getApiEndpoint('aliyun')
 
   // 构建请求体
@@ -38,18 +33,14 @@ export async function streamChat(options: StreamOptions): Promise<string> {
     messages,
     stream: true,
     stream_options: { include_usage: true },
-    ...(temperature !== undefined && { temperature }),
-    ...(top_p !== undefined && { top_p }),
-    ...(frequency_penalty !== undefined && { frequency_penalty }),
-    ...(presence_penalty !== undefined && { presence_penalty }),
-    // 思考模式参数
-    extra_body: {
-      enable_thinking: enableThinking ?? false
-    }
+    // 思考模式参数（放在顶层）
+    enable_thinking: enableThinking ?? false,
+    // 开启思考时限制思考长度
+    ...(enableThinking && { thinking_budget: 2048 }),
   }
 
   // 调试日志
-  console.log('[API Request]', JSON.stringify(body, null, 2))
+  console.log('[streamChat] enableThinking:', enableThinking)
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -135,18 +126,13 @@ export interface ChatOptions {
     role: 'system' | 'user' | 'assistant'
     content: string | Array<{ type: string; text?: string; image_url?: { url: string }; video_url?: { url: string } }>
   }>
-  // 模型参数
-  temperature?: number
-  top_p?: number
-  frequency_penalty?: number
-  presence_penalty?: number
 }
 
 export async function chat(options: ChatOptions): Promise<{
   content: string
   usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
 }> {
-  const { apiKey, model, messages, temperature, top_p, frequency_penalty, presence_penalty } = options
+  const { apiKey, model, messages } = options
   const endpoint = getApiEndpoint('aliyun')
 
   const response = await fetch(endpoint, {
@@ -159,10 +145,6 @@ export async function chat(options: ChatOptions): Promise<{
       model,
       messages,
       stream: false,
-      ...(temperature !== undefined && { temperature }),
-      ...(top_p !== undefined && { top_p }),
-      ...(frequency_penalty !== undefined && { frequency_penalty }),
-      ...(presence_penalty !== undefined && { presence_penalty }),
     }),
   })
 

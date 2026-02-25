@@ -18,7 +18,7 @@ const router = createRouter({
         default: () => import('@/views/AnalyzePage.vue'),
         config: () => import('@/components/LeftPanel.vue'),
       },
-      meta: { title: '视频脚本解析', hasConfig: true, requiresAuth: false },
+      meta: { title: '拆解脚本', hasConfig: true, requiresAuth: false },
     },
     {
       path: '/create',

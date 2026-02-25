@@ -11,7 +11,7 @@ import { FileSpreadsheet, FileText, Table2, Heart } from 'lucide-vue-next'
 import AuthDialog from '@/components/AuthDialog.vue'
 import FavoriteDialog from '@/components/FavoriteDialog.vue'
 
-const { viewMode, scriptItems, hasResult, tokenUsage, markdownContent, videoUrl, selectedModel } = useVideoAnalysis()
+const va = useVideoAnalysis()
 const auth = useAuth()
 const { toast } = useToast()
 
@@ -20,17 +20,17 @@ const showFavoriteDialog = ref(false)
 
 // 收藏数据
 const favoriteData = computed(() => {
-  if (!hasResult.value || !scriptItems.value.length) return null
+  if (!va.hasResult.value || !va.scriptItems.value.length) return null
   return {
-    rawMarkdown: markdownContent.value,
-    scriptData: scriptItems.value,
+    rawMarkdown: va.markdownContent.value,
+    scriptData: va.scriptItems.value,
     sourceType: 'video' as const,
-    sourceUrl: videoUrl.value,
-    shotCount: scriptItems.value.length,
-    modelProvider: selectedModel.value?.providerName || '',
-    modelId: selectedModel.value?.id || '',
-    inputTokens: tokenUsage.value?.prompt_tokens || 0,
-    outputTokens: tokenUsage.value?.completion_tokens || 0,
+    sourceUrl: va.videoUrl.value,
+    shotCount: va.scriptItems.value.length,
+    modelProvider: va.selectedModel.value?.providerName || '',
+    modelId: va.selectedModel.value?.id || '',
+    inputTokens: va.tokenUsage.value?.prompt_tokens || 0,
+    outputTokens: va.tokenUsage.value?.completion_tokens || 0,
   }
 })
 
@@ -58,12 +58,12 @@ function handleFavoriteSaved() {
 
     <Separator orientation="vertical" class="mx-1 h-5" />
 
-    <div v-if="hasResult" class="flex items-center gap-1">
+    <div v-if="va.hasResult.value" class="flex items-center gap-1">
       <Button
         variant="ghost"
         size="sm"
-        :class="viewMode === 'markdown' ? 'bg-accent' : ''"
-        @click="viewMode = 'markdown'"
+        :class="va.viewMode.value === 'markdown' ? 'bg-accent' : ''"
+        @click="va.viewMode.value = 'markdown'"
       >
         <FileText class="mr-1.5 h-4 w-4" />
         原始内容
@@ -71,8 +71,8 @@ function handleFavoriteSaved() {
       <Button
         variant="ghost"
         size="sm"
-        :class="viewMode === 'table' ? 'bg-accent' : ''"
-        @click="viewMode = 'table'"
+        :class="va.viewMode.value === 'table' ? 'bg-accent' : ''"
+        @click="va.viewMode.value = 'table'"
       >
         <Table2 class="mr-1.5 h-4 w-4" />
         分镜表格
@@ -81,18 +81,18 @@ function handleFavoriteSaved() {
 
     <div class="flex-1" />
 
-    <div v-if="tokenUsage" class="flex items-center gap-2">
+    <div v-if="va.tokenUsage.value" class="flex items-center gap-2">
       <Badge variant="secondary" class="text-xs">
-        输入 {{ tokenUsage.prompt_tokens.toLocaleString() }}
+        输入 {{ va.tokenUsage.value.prompt_tokens.toLocaleString() }}
       </Badge>
       <Badge variant="secondary" class="text-xs">
-        输出 {{ tokenUsage.completion_tokens.toLocaleString() }}
+        输出 {{ va.tokenUsage.value.completion_tokens.toLocaleString() }}
       </Badge>
     </div>
 
     <!-- 收藏按钮 -->
     <Button
-      v-if="hasResult && scriptItems.length"
+      v-if="va.hasResult.value && va.scriptItems.value.length"
       variant="outline"
       size="sm"
       @click="handleFavoriteClick"
@@ -102,10 +102,10 @@ function handleFavoriteSaved() {
     </Button>
 
     <Button
-      v-if="hasResult && scriptItems.length"
+      v-if="va.hasResult.value && va.scriptItems.value.length"
       variant="outline"
       size="sm"
-      @click="exportToExcel(scriptItems)"
+      @click="exportToExcel(va.scriptItems.value)"
     >
       <FileSpreadsheet class="mr-1.5 h-4 w-4" />
       导出 Excel
