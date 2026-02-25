@@ -1,32 +1,42 @@
-# youmedhub
+# YouMedHub
 
-AI 视频分镜脚本分析工具 — 上传视频，自动生成结构化分镜拍摄脚本。
+AI 视频分镜脚本工具 — 拆解视频或从零创作，生成结构化分镜拍摄脚本。
 
 ## 功能
 
-- **视频上传** — 拖拽或点击上传，支持 mp4/mov，≤100MB / ≤10 分钟，阿里云 OSS 直传
-- **AI 分镜分析** — 阿里云百炼 Qwen VL 模型（flash/plus 可选），SSE 流式输出
-- **双模式展示** — Markdown 原始内容（实时流式渲染）/ 分镜表格（9 列 + 色彩标签 + hover 视频预览）
+- **视频拆解** — 上传短视频，AI 自动生成分镜脚本（景别、运镜、台词、音效等）
+- **脚本生成** — 从零创作或参考已有脚本风格，生成全新分镜脚本
+- **双模式展示** — Markdown 流式渲染 / 分镜表格（含视频片段预览）
+- **云端收藏** — 登录后保存脚本，随时查看和管理
 - **Excel 导出** — 一键导出分镜脚本为 .xlsx
-- **API Key 管理** — 浏览器本地存储，不经过服务端
 
 ## 技术栈
 
 Vue 3.5 + Vite 7.3 + TypeScript 5.7 + Tailwind CSS 3.4 + shadcn-vue
 
-关键依赖：`ali-oss`（OSS 直传）、`markstream-vue`（Markdown 流式渲染）、`xlsx`（Excel 导出）
+| 依赖 | 用途 |
+|------|------|
+| `@supabase/supabase-js` | 用户认证 + 数据存储 |
+| `ali-oss` | 阿里云 OSS 视频直传 |
+| `markstream-vue` | Markdown 流式渲染 |
+| `xlsx` | Excel 导出 |
 
 ## 快速开始
 
 ```bash
 npm install
-cp .env.example .env   # 填入阿里云 OSS 配置
+cp .env.example .env   # 填入环境变量
 npm run dev
 ```
 
-环境变量（本地开发）：
+环境变量：
 
 ```bash
+# Supabase（必须）
+VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
+
+# 阿里云 OSS（视频上传）
 VITE_ALIYUN_ACCESS_KEY_ID=your_access_key_id
 VITE_ALIYUN_ACCESS_KEY_SECRET=your_access_key_secret
 VITE_ALIYUN_OSS_REGION=oss-cn-hangzhou
@@ -35,34 +45,33 @@ VITE_ALIYUN_OSS_BUCKET=your-bucket-name
 
 ## 部署
 
-Vercel 部署，`api/oss-sts.ts` 自动识别为 Serverless Function（STS 临时凭证）。
-
-Vercel 环境变量：
-
-```bash
-ALIYUN_ACCESS_KEY_ID=your_access_key_id
-ALIYUN_ACCESS_KEY_SECRET=your_access_key_secret
-ALIYUN_ROLE_ARN=acs:ram::your-account-id:role/your-role-name
-ALIYUN_OSS_REGION=oss-cn-hangzhou
-ALIYUN_OSS_BUCKET=your-bucket-name
-```
+Vercel 部署，`api/oss-sts.ts` 作为 Serverless Function 提供 STS 临时凭证。
 
 ## 项目结构
 
 ```
 src/
-├── api/            # OSS 上传、百炼视频分析 API
+├── api/            # AI 分析、OSS 上传
 ├── components/     # 业务组件 + ui/ (shadcn-vue)
-├── composables/    # 全局状态管理 (useVideoAnalysis)
-├── prompts/        # AI 分镜分析提示词
-├── types/          # TypeScript 类型定义
-└── utils/          # Excel 导出、时间解析
+├── composables/    # 全局状态（useVideoAnalysis / useAuth / useFavorites）
+├── config/         # 模型配置
+├── lib/            # Supabase 客户端
+├── prompts/        # AI 提示词（三种模式）
+├── router/         # Vue Router 路由
+├── types/          # TypeScript 类型
+├── utils/          # Excel 导出、时间解析
+└── views/          # 页面（首页/分析/生成/收藏/设置/个人中心）
 api/
 └── oss-sts.ts      # Vercel Serverless Function
 docs/
-└── prd/            # 产品文档 (v0.2.0, v0.2.1)
+├── roadmap.md      # 产品路线图
+└── prd/            # 产品文档
 ```
 
-## 更新日志
+## 路线图
 
-详见 [CHANGELOG.md](./CHANGELOG.md)
+详见 [docs/roadmap.md](./docs/roadmap.md)
+
+- 分镜图生成（v0.3.0）
+- 视频生成（v0.3.0）
+- 移动端适配（v0.4.0）
