@@ -4,13 +4,13 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-vue-next'
 
-const { videoFile, videoUrl, resetAll } = useVideoAnalysis()
+const { videoFile, previewUrl, resetAll } = useVideoAnalysis()
 </script>
 
 <template>
-  <Card class="overflow-hidden">
+  <Card class="overflow-hidden shadow-none">
     <video
-      :src="videoUrl"
+      :src="previewUrl"
       controls
       class="w-full rounded-t-lg"
     />

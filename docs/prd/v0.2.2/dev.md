@@ -234,6 +234,51 @@ Favorite {
 
 见 [auth.md](./auth.md) 第 2 节。
 
+### 4.3 三步生成工作流模型（新增）
+
+#### GenerationInputSnapshot（Step 1 提交快照）
+
+```
+GenerationInputSnapshot {
+  videoType: 'ecommerce' | 'usage' | 'selling-point' | 'unboxing' | 'comparison' | 'tutorial' | 'brand-story'
+  requirementFields: Record<string, string> // 视频类型对应动态字段
+  requirementNote?: string                  // 补充说明
+  referenceImageUrls?: string[]
+  referenceScript?: string
+  style?: string
+  targetDuration?: number
+  scriptCount: number
+  submittedAt: string
+}
+```
+
+#### ScriptCandidate（脚本候选）
+
+```
+ScriptCandidate {
+  id: string
+  index: number
+  title: string
+  markdownContent: string
+  scriptItems: VideoScriptItem[]
+  status: 'pending' | 'streaming' | 'success' | 'failed'
+  error?: string
+}
+```
+
+#### GenerationWorkflowState（Step 编排状态）
+
+```
+GenerationWorkflowState {
+  snapshot?: GenerationInputSnapshot
+  scriptStep: 'idle' | 'running' | 'done' | 'failed'
+  storyboardStep: 'idle' | 'running' | 'partial' | 'done' | 'failed'
+  videoStep: 'idle' | 'running' | 'done' | 'failed'
+  candidates: ScriptCandidate[]
+  activeCandidateId?: string
+}
+```
+
 ---
 
 ## 5. 提示词工程
@@ -265,22 +310,34 @@ Favorite {
 └─────────────────────────────────────────┘
 ```
 
-### 5.2 三种模式的提示词差异
+### 5.2 统一输入下的提示词策略
 
-| 模式 | 特殊要求 |
+| 场景 | 特殊要求 |
 |------|----------|
 | 视频分析 | 分析实际视频内容，时间戳精确 |
-| 从零生成 | 基于描述创意，时长分配合理 |
-| 参考生成 | 保留参考脚本风格，按指令调整 |
+| 脚本生成（无参考） | 基于视频要求卡片生成完整脚本，时长分配合理 |
+| 脚本生成（有参考） | 参考输入脚本/图片风格，同时满足视频要求卡片约束 |
+
+### 5.3 视频要求卡片字段映射（7 类）
+
+`videoType` 作为路由字段，动态字段由前端配置映射到统一 prompt 结构：
+
+- 电商头图类：商品名称、核心卖点、价格/优惠、目标人群
+- 使用场景类：典型场景、用户痛点、使用步骤、环境限制
+- 卖点展示类：卖点清单、证明方式、优先级
+- 开箱测评类：开箱亮点、测评维度、优缺点、结论倾向
+- 对比种草类：对比对象、对比维度、推荐理由、适用人群
+- 教程讲解类：教程目标、步骤拆解、注意事项、成果展示
+- 品牌故事类：品牌定位、故事主线、情感关键词、行动号召
 
 ---
 
-## 6. 图片生成
+## 6. 三步生成能力（Step2 分镜图 + Step3 视频）
 
-### 6.1 调用流程
+### 6.1 Step 2 分镜图调用流程
 
 ```
-用户触发生成
+用户触发（批量/单条）
       │
       ▼
 ┌─────────────────┐
@@ -311,11 +368,36 @@ Favorite {
 返回URL   抛出异常
 ```
 
-### 6.2 并发控制
+### 6.2 Step 2 状态与并发控制
 
 - 队列模式：任务入队，逐个执行
 - 并发限制：最多 2 个任务同时运行
 - 失败处理：单个失败不影响其他任务
+- 状态粒度：按 `candidateId + shotId` 维护 `idle/running/success/failed`
+
+### 6.3 Step 3 视频生成流程
+
+```
+选择当前脚本候选
+      │
+      ▼
+检查分镜图就绪度（可配置最小阈值）
+      │
+      ▼
+组装视频生成请求（脚本 + 分镜图 + 时长/风格）
+      │
+      ▼
+调用视频生成 API
+      │
+      ▼
+轮询任务状态 → 返回视频 URL / 错误
+```
+
+### 6.4 Step 编排约束
+
+- Step 1 提交后生成 `GenerationInputSnapshot`，用于固定信息卡片展示。
+- Step 2、Step 3 必须绑定 `activeCandidateId`，避免跨方案错用素材。
+- 切换候选脚本时，仅切换展示与操作上下文，不清空其他候选结果。
 
 ---
 
@@ -356,6 +438,7 @@ App.vue
 | 认证状态 | Supabase + localStorage | 持久化 |
 | 用户数据 | Supabase Database | 持久化 |
 | 脚本数据 | composable ref | 会话级 |
+| 三步工作流状态 | composable ref | 会话级 |
 | UI 状态 | composable ref | 会话级 |
 | 配置项 | localStorage | 持久化 |
 
@@ -365,7 +448,7 @@ App.vue
 |------------|------|
 | `useAuth` | 认证状态、登录登出 |
 | `useFavorites` | 收藏 CRUD |
-| `useVideoAnalysis` | 分析状态、脚本数据 |
+| `useVideoAnalysis` | 分析状态、脚本候选、Step1/2/3 编排状态 |
 | `useApiKeys` | API Key 管理 |
 
 ---
@@ -470,6 +553,7 @@ VITE_ARK_API_KEY=xxx
 |------|----------|
 | 登录流程 | OAuth 回调、状态更新 |
 | 脚本分析 | 流式输出、结果解析 |
+| Step 生成流程 | Step1 提交挂起、Step2 分镜图、Step3 视频生成 |
 | 收藏功能 | CRUD 操作 |
 
 ### 13.3 E2E 测试
@@ -477,6 +561,7 @@ VITE_ARK_API_KEY=xxx
 | 流程 | 测试步骤 |
 |------|----------|
 | 完整分析流程 | 登录 → 上传 → 分析 → 收藏 → 查看 |
+| 完整生成流程 | 填写视频要求 → 生成多脚本 → 生成分镜图 → 生成视频 |
 | 认证流程 | 注册 → 登录 → 个人中心 → 退出 |
 
 ---
@@ -495,7 +580,7 @@ VITE_ARK_API_KEY=xxx
 - [ ] OpenAI 兼容 API 层
 - [ ] 模型选择（Qwen3.5 + Doubao）
 - [ ] 提示词优化
-- [ ] 多输入源生成
+- [ ] 统一输入脚本生成（视频要求卡片 + 多脚本候选）
 
 ### Phase 3：用户功能（3 天）
 
@@ -505,7 +590,8 @@ VITE_ARK_API_KEY=xxx
 
 ### Phase 4：增强功能（2 天）
 
-- [ ] 分镜图生成
+- [ ] Step2 分镜图生成
+- [ ] Step3 视频生成
 - [ ] 性能优化
 - [ ] 测试 & 修复
 

@@ -9,17 +9,17 @@ import {
 import { Input } from '@/components/ui/input'
 import { Settings } from 'lucide-vue-next'
 
-const { apiKey, setApiKey } = useVideoAnalysis()
+const { dashscopeApiKey, setDashscopeApiKey } = useVideoAnalysis()
 const open = ref(false)
-const inputKey = ref(apiKey.value)
+const inputDashscopeKey = ref(dashscopeApiKey.value)
 
 function handleSave() {
-  setApiKey(inputKey.value.trim())
+  setDashscopeApiKey(inputDashscopeKey.value.trim())
   open.value = false
 }
 
 function handleOpen() {
-  inputKey.value = apiKey.value
+  inputDashscopeKey.value = dashscopeApiKey.value
 }
 </script>
 
@@ -35,16 +35,18 @@ function handleOpen() {
       <DialogHeader>
         <DialogTitle>API Key 设置</DialogTitle>
         <DialogDescription>
-          输入阿里云百炼 API Key，Key 仅保存在浏览器本地。
+          输入 API Key，Key 仅保存在浏览器本地。
         </DialogDescription>
       </DialogHeader>
-      <div class="space-y-2">
-        <label class="text-sm font-medium">阿里云百炼 API Key</label>
-        <Input
-          v-model="inputKey"
-          type="password"
-          placeholder="sk-xxxxxxxxxxxxxxxxxxxx"
-        />
+      <div class="space-y-4">
+        <div class="space-y-2">
+          <label class="text-sm font-medium">阿里百炼 API Key</label>
+          <Input
+            v-model="inputDashscopeKey"
+            type="password"
+            placeholder="sk-xxxxxxxxxxxxxxxxxxxx"
+          />
+        </div>
       </div>
       <DialogFooter>
         <Button variant="outline" @click="open = false">取消</Button>

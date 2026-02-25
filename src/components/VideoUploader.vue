@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
-import { uploadToTemporaryFile, validateVideoFile } from '@/api/temporaryFile'
+import { validateVideoFile } from '@/api/temporaryFile'
 import { Card } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Upload } from 'lucide-vue-next'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Upload, Link } from 'lucide-vue-next'
 
-const {
-  videoFile, videoUrl, uploadProgress, uploadStatus, resetAnalysis,
-} = useVideoAnalysis()
+const va = useVideoAnalysis()
 
 const dragOver = ref(false)
 const errorMsg = ref('')
+const urlInput = ref('')
+const showUrlInput = ref(false)
 
 function checkDuration(file: File): Promise<boolean> {
   return new Promise((resolve) => {
@@ -47,21 +48,18 @@ async function handleFile(file: File) {
   const durationOk = await checkDuration(file)
   if (!durationOk) return
 
-  videoFile.value = file
-  uploadStatus.value = 'uploading'
-  uploadProgress.value = 0
-  resetAnalysis()
-
-  try {
-    const result = await uploadToTemporaryFile(file, (loaded, total) => {
-      uploadProgress.value = total > 0 ? Math.round((loaded / total) * 100) : 0
-    })
-    videoUrl.value = result.downloadLink
-    uploadStatus.value = 'success'
-  } catch (e) {
-    errorMsg.value = e instanceof Error ? e.message : '上传失败'
-    uploadStatus.value = 'error'
+  // 释放旧的 object URL
+  if (va.localVideoUrl.value) {
+    URL.revokeObjectURL(va.localVideoUrl.value)
   }
+
+  // 创建本地预览 URL
+  va.localVideoUrl.value = URL.createObjectURL(file)
+
+  // 保存文件，不立即上传
+  va.videoFile.value = file
+  va.uploadStatus.value = 'idle'
+  va.resetAnalysis()
 }
 
 function onDrop(e: DragEvent) {
@@ -74,23 +72,55 @@ function onFileInput(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (file) handleFile(file)
 }
+
+function handleUrlInput() {
+  if (!urlInput.value.trim()) {
+    errorMsg.value = '请输入视频 URL'
+    return
+  }
+  if (!urlInput.value.startsWith('http')) {
+    errorMsg.value = '请输入有效的 HTTP URL'
+    return
+  }
+  errorMsg.value = ''
+  va.videoUrl.value = urlInput.value.trim()
+  va.uploadStatus.value = 'success'
+  va.videoFile.value = null // URL 方式不需要上传
+  va.resetAnalysis()
+}
+
+// 清除视频文件
+function handleClearVideo() {
+  va.clearVideoFile()
+  errorMsg.value = ''
+}
 </script>
 
 <template>
   <Card
-    class="flex flex-col items-center justify-center border-2 border-dashed p-6 transition-colors"
+    class="flex flex-col items-center justify-center border-2 border-dashed p-6 transition-colors shadow-none"
     :class="dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'"
     @dragover.prevent="dragOver = true"
     @dragleave="dragOver = false"
     @drop.prevent="onDrop"
   >
-    <template v-if="uploadStatus === 'uploading'">
-      <p class="mb-2 text-sm text-muted-foreground">
-        正在上传 {{ videoFile?.name }}
+    <!-- 已选择文件提示 -->
+    <div v-if="va.videoFile.value" class="text-center">
+      <p class="text-sm font-medium text-foreground">{{ va.videoFile.value.name }}</p>
+      <p class="mt-1 text-xs text-muted-foreground">
+        已选择，点击「开始分析」上传
       </p>
-      <Progress :model-value="uploadProgress" class="w-full" />
-      <p class="mt-1 text-xs text-muted-foreground">{{ uploadProgress }}%</p>
-    </template>
+      <Button
+        variant="ghost"
+        size="sm"
+        class="mt-2 text-xs"
+        @click="handleClearVideo"
+      >
+        重新选择
+      </Button>
+    </div>
+
+    <!-- 上传/输入区域 -->
     <template v-else>
       <label class="flex cursor-pointer flex-col items-center gap-2">
         <Upload class="h-10 w-10 text-muted-foreground" />
@@ -103,7 +133,30 @@ function onFileInput(e: Event) {
           @change="onFileInput"
         />
       </label>
-      <p v-if="errorMsg" class="mt-2 text-xs text-destructive">{{ errorMsg }}</p>
+
+      <!-- URL 输入区域 -->
+      <div class="mt-4 w-full">
+        <Button
+          variant="ghost"
+          size="sm"
+          class="mb-2 text-xs"
+          @click="showUrlInput = !showUrlInput"
+        >
+          <Link class="mr-1 h-3 w-3" />
+          {{ showUrlInput ? '隐藏 URL 输入' : '或输入视频 URL' }}
+        </Button>
+        <div v-if="showUrlInput" class="flex gap-2">
+          <Input
+            v-model="urlInput"
+            placeholder="输入视频 URL"
+            class="text-xs"
+            @keyup.enter="handleUrlInput"
+          />
+          <Button size="sm" @click="handleUrlInput">确定</Button>
+        </div>
+      </div>
     </template>
+
+    <p v-if="errorMsg" class="mt-2 text-xs text-destructive">{{ errorMsg }}</p>
   </Card>
 </template>
