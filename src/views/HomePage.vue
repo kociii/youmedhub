@@ -7,7 +7,6 @@ import {
   Sparkles,
   Video,
   ArrowRight,
-  Play,
   ImagePlus,
   Film,
 } from 'lucide-vue-next'
@@ -38,17 +37,6 @@ function goToLogin() {
           上传视频，AI 自动生成分镜脚本
         </p>
 
-        <div class="mt-8 flex justify-center gap-4">
-          <Button size="lg" @click="goToAnalyze">
-            <Play class="mr-2 h-5 w-5" />
-            拆解脚本
-          </Button>
-          <Button size="lg" variant="outline" @click="goToCreate">
-            <Sparkles class="mr-2 h-5 w-5" />
-            生成脚本
-          </Button>
-        </div>
-
         <div v-if="!auth.isAuthenticated.value" class="mt-4 text-sm text-muted-foreground">
           <Button variant="link" class="p-0 h-auto" @click="goToLogin">
             登录后可保存脚本到云端
@@ -70,8 +58,12 @@ function goToLogin() {
           </CardHeader>
           <CardContent>
             <CardDescription>
-              上传短视频，AI 自动生成包含景别、运镜、台词、音效等维度的分镜脚本。
+              上传短视频，AI 自动生成包含景别、运镜、台词、音效等维度的分镜脚本。支持表格和 Markdown 双模式查看，可导出 Excel。
             </CardDescription>
+            <Button variant="ghost" class="mt-3 p-0 h-auto group-hover:text-primary">
+              开始拆解
+              <ArrowRight class="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
           </CardContent>
         </Card>
 
@@ -86,8 +78,12 @@ function goToLogin() {
           </CardHeader>
           <CardContent>
             <CardDescription>
-              从零创作或参考已有脚本，快速生成全新的分镜拍摄脚本。
+              从零创作或参考已有脚本风格，快速生成全新的分镜拍摄脚本。支持自定义视频类型、时长和风格。
             </CardDescription>
+            <Button variant="ghost" class="mt-3 p-0 h-auto group-hover:text-primary">
+              开始创作
+              <ArrowRight class="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
           </CardContent>
         </Card>
       </div>
