@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Analytics } from '@vercel/analytics/vue'
 import { RouterView } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { Toaster } from '@/components/ui/toast'
@@ -18,4 +19,5 @@ useVideoAnalysis()
     </template>
   </AppLayout>
   <Toaster />
+  <Analytics />
 </template>
