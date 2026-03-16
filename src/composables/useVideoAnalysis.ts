@@ -59,6 +59,8 @@ const isThinking = ref(false)
 // 配置栏是否展开（创建模式下开始生成前展开，生成后收起）
 const isConfigPanelExpanded = ref(true)
 
+const playPreviewAudio = ref(localStorage.getItem('play_preview_audio') !== 'false')
+
 const hasVideo = computed(() => !!videoFile.value || !!videoUrl.value)
 const hasResult = computed(() => !!markdownContent.value)
 const isAnalyzing = computed(() => analysisStatus.value === 'analyzing')
@@ -68,8 +70,20 @@ const activeScriptCandidate = computed(() =>
 )
 const hasMultipleScriptCandidates = computed(() => scriptCandidates.value.length > 1)
 
-// 可用的视频预览 URL（仅使用本地文件）
-const previewUrl = computed(() => localVideoUrl.value)
+function isBrowserPlayableVideoUrl(url: string): boolean {
+  if (!url) return false
+
+  return /^(blob:|data:|https?:\/\/|\/)/i.test(url)
+}
+
+// 可用的视频预览 URL（优先本地文件，其次可直接播放的远程地址）
+const previewUrl = computed(() => {
+  if (localVideoUrl.value) {
+    return localVideoUrl.value
+  }
+
+  return isBrowserPlayableVideoUrl(videoUrl.value) ? videoUrl.value : ''
+})
 
 // 当前 API Key
 const currentApiKey = computed(() => dashscopeApiKey.value)
@@ -213,6 +227,11 @@ export function useVideoAnalysis() {
   // 收起配置栏（生成成功后调用）
   function collapseConfigPanel() {
     isConfigPanelExpanded.value = false
+  }
+
+  function setPlayPreviewAudio(enabled: boolean) {
+    playPreviewAudio.value = enabled
+    localStorage.setItem('play_preview_audio', String(enabled))
   }
 
   // 释放本地预览 URL
@@ -391,6 +410,7 @@ export function useVideoAnalysis() {
     thinkingContent,
     isThinking,
     isConfigPanelExpanded,
+    playPreviewAudio,
     dashscopeApiKey,
     currentApiKey,
     hasVideo,
@@ -417,6 +437,7 @@ export function useVideoAnalysis() {
     addImageFile,
     removeImageFile,
     revokeLocalVideoUrl,
+    setPlayPreviewAudio,
     // 上传相关
     setVideoFile,
     uploadVideo,

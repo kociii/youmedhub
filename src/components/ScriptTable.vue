@@ -81,9 +81,10 @@ const isAnalyzeMode = computed(() => va.analysisMode.value === 'analyze')
           </TableCell>
           <TableCell v-if="isAnalyzeMode" class="max-h-[300px] text-center">
             <VideoSegmentPlayer
-              :src="va.videoUrl.value"
+              :src="va.previewUrl.value"
               :start-time="item.startTime"
               :end-time="item.endTime"
+              :play-audio="va.playPreviewAudio.value"
             />
           </TableCell>
         </TableRow>

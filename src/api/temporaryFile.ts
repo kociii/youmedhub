@@ -20,12 +20,6 @@ import {
 export type { TemporaryFileResponse, UploadProgressCallback }
 export { formatFileSize, validateFile, validateVideoFile, validateImageFile }
 
-// 模型名称映射（内部 model ID -> 百炼 model ID）
-const MODEL_MAPPING: Record<string, string> = {
-  'qwen3.5-flash': 'qwen-vl-max',
-  'qwen3.5-plus': 'qwen-vl-max',
-}
-
 /**
  * 上传文件到临时存储（兼容旧接口）
  *
@@ -41,10 +35,7 @@ export async function uploadToTemporaryFile(
   apiKey: string,
   onProgress?: UploadProgressCallback
 ): Promise<TemporaryFileResponse> {
-  // 转换模型名称
-  const dashscopeModel = MODEL_MAPPING[model] || model
-
-  const ossUrl = await uploadToDashScope(file, dashscopeModel, { apiKey, onProgress })
+  const ossUrl = await uploadToDashScope(file, model, { apiKey, onProgress })
 
   return {
     fileName: file.name,

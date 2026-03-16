@@ -8,13 +8,19 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 const DASHSCOPE_BASE_URL = 'https://dashscope.aliyuncs.com'
 
+function getBearerToken(authorizationHeader?: string): string {
+  if (!authorizationHeader) return ''
+  const match = authorizationHeader.match(/^Bearer\s+(.+)$/i)
+  return match?.[1]?.trim() || ''
+}
+
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
   // 启用 CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
 
   // 处理预检请求
@@ -23,12 +29,22 @@ export default async function handler(
     return
   }
 
-  if (req.method !== 'GET') {
+  if (req.method !== 'GET' && req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return
   }
 
-  const { model, apiKey } = req.query
+  const model = (
+    req.method === 'GET'
+      ? req.query.model
+      : req.body?.model
+  )
+
+  const apiKey = (
+    req.method === 'GET'
+      ? req.query.apiKey
+      : getBearerToken(req.headers.authorization)
+  )
 
   if (!model || typeof model !== 'string') {
     res.status(400).json({ error: 'Missing required parameter: model' })

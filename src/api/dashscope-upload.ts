@@ -53,14 +53,15 @@ export async function getUploadPolicy(
   apiKey: string,
   model: string
 ): Promise<UploadPolicyResponse['data']> {
-  // 使用代理接口避免 CORS
-  const url = `${PROXY_BASE_URL}/dashscope-policy?model=${encodeURIComponent(model)}&apiKey=${encodeURIComponent(apiKey)}`
+  const url = `${PROXY_BASE_URL}/dashscope-policy`
 
   const response = await fetch(url, {
-    method: 'GET',
+    method: 'POST',
     headers: {
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
+    body: JSON.stringify({ model }),
   })
 
   if (!response.ok) {

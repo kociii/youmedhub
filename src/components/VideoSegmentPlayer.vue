@@ -6,6 +6,7 @@ const props = defineProps<{
   src: string
   startTime: string
   endTime: string
+  playAudio?: boolean
 }>()
 
 const videoRef = ref<HTMLVideoElement | null>(null)
@@ -20,6 +21,7 @@ onMounted(() => {
 function play() {
   const video = videoRef.value
   if (!video) return
+  video.muted = !props.playAudio
   video.currentTime = parseTimeToSeconds(props.startTime)
   video.play().catch(() => {})
 }
@@ -28,6 +30,7 @@ function stop() {
   const video = videoRef.value
   if (!video) return
   video.pause()
+  video.muted = true
   video.currentTime = parseTimeToSeconds(props.startTime)
 }
 
@@ -49,12 +52,19 @@ function onTimeUpdate() {
     @mouseenter="play"
     @mouseleave="stop"
   >
+    <div
+      v-if="!src"
+      class="flex h-20 w-full items-center justify-center rounded border border-dashed text-xs text-muted-foreground"
+    >
+      当前来源不支持预览
+    </div>
     <video
+      v-else
       ref="videoRef"
       :src="src"
       class="max-h-[260px] w-full rounded object-contain"
       preload="metadata"
-      muted
+      :muted="!playAudio"
       @timeupdate="onTimeUpdate"
     />
   </div>

@@ -5,10 +5,8 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-vue-next'
 
-const { videoFile, localVideoUrl, resetAll } = useVideoAnalysis()
-
-// 确保正确获取 ref 的值
-const videoSrc = computed(() => localVideoUrl.value)
+const { videoFile, previewUrl, resetAll } = useVideoAnalysis()
+const videoSrc = computed(() => previewUrl.value)
 </script>
 
 <template>
