@@ -68,19 +68,8 @@ const activeScriptCandidate = computed(() =>
 )
 const hasMultipleScriptCandidates = computed(() => scriptCandidates.value.length > 1)
 
-// 可用的视频预览 URL（仅使用本地 URL，oss:// 格式无法预览）
-const previewUrl = computed(() => {
-  // 优先使用本地 URL（blob: 开头的 object URL）
-  if (localVideoUrl.value) {
-    return localVideoUrl.value
-  }
-  // 如果 videoUrl 是 http(s) 格式，可以使用
-  if (videoUrl.value && videoUrl.value.startsWith('http')) {
-    return videoUrl.value
-  }
-  // oss:// 格式无法直接预览，返回空字符串
-  return ''
-})
+// 可用的视频预览 URL（仅使用本地文件）
+const previewUrl = computed(() => localVideoUrl.value)
 
 // 当前 API Key
 const currentApiKey = computed(() => dashscopeApiKey.value)
