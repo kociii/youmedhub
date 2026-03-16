@@ -37,7 +37,7 @@ const isAnalyzeMode = computed(() => va.analysisMode.value === 'analyze')
       <TableHeader>
         <TableRow>
           <TableHead class="w-12 text-center text-xs">序号</TableHead>
-          <TableHead class="w-24 text-center text-xs">景别/运镜</TableHead>
+          <TableHead class="w-32 text-center text-xs">景别/运镜</TableHead>
           <TableHead class="min-w-[160px] text-xs">画面内容</TableHead>
           <TableHead class="min-w-[160px] text-xs">拍摄指导</TableHead>
           <TableHead class="min-w-[100px] text-xs">画面文案/花字</TableHead>
