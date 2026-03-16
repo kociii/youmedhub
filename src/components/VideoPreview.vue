@@ -1,16 +1,20 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useVideoAnalysis } from '@/composables/useVideoAnalysis'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-vue-next'
 
 const { videoFile, localVideoUrl, resetAll } = useVideoAnalysis()
+
+// 确保正确获取 ref 的值
+const videoSrc = computed(() => localVideoUrl.value)
 </script>
 
 <template>
   <Card class="overflow-hidden shadow-none">
     <video
-      :src="localVideoUrl"
+      :src="videoSrc"
       controls
       class="w-full rounded-t-lg"
     />
