@@ -91,8 +91,7 @@ async function uploadVideo(): Promise<string> {
     )
     va.videoUrl.value = result.downloadLink
     va.uploadStatus.value = 'success'
-    // 上传完成后释放本地预览 URL，使用远程 URL
-    va.revokeLocalVideoUrl()
+    // 保留本地预览 URL，oss:// 格式无法在浏览器预览
     return result.downloadLink
   } catch (e) {
     va.uploadStatus.value = 'error'
