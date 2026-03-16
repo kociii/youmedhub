@@ -31,18 +31,20 @@ const MODEL_MAPPING: Record<string, string> = {
  *
  * @param file 要上传的文件
  * @param model 目标模型（内部 model ID，如 'qwen3.5-flash'）
+ * @param apiKey 百炼 API Key（必填）
  * @param onProgress 上传进度回调
  * @returns 上传结果
  */
 export async function uploadToTemporaryFile(
   file: File,
-  model: string = 'qwen3.5-flash',
+  model: string,
+  apiKey: string,
   onProgress?: UploadProgressCallback
 ): Promise<TemporaryFileResponse> {
   // 转换模型名称
   const dashscopeModel = MODEL_MAPPING[model] || model
 
-  const ossUrl = await uploadToDashScope(file, dashscopeModel, { onProgress })
+  const ossUrl = await uploadToDashScope(file, dashscopeModel, { apiKey, onProgress })
 
   return {
     fileName: file.name,
@@ -59,12 +61,14 @@ export async function uploadToTemporaryFile(
  *
  * @param file 视频文件
  * @param model 目标模型
+ * @param apiKey 百炼 API Key（必填）
  * @param onProgress 进度回调
  * @returns 上传结果
  */
 export async function uploadVideoFile(
   file: File,
-  model: string = 'qwen3.5-flash',
+  model: string,
+  apiKey: string,
   onProgress?: UploadProgressCallback
 ): Promise<TemporaryFileResponse> {
   // 验证视频文件
@@ -73,7 +77,7 @@ export async function uploadVideoFile(
     throw new Error(validation.error)
   }
 
-  return uploadToTemporaryFile(file, model, onProgress)
+  return uploadToTemporaryFile(file, model, apiKey, onProgress)
 }
 
 /**
@@ -81,12 +85,14 @@ export async function uploadVideoFile(
  *
  * @param file 图片文件
  * @param model 目标模型
+ * @param apiKey 百炼 API Key（必填）
  * @param onProgress 进度回调
  * @returns 上传结果
  */
 export async function uploadImageFile(
   file: File,
-  model: string = 'qwen3.5-flash',
+  model: string,
+  apiKey: string,
   onProgress?: UploadProgressCallback
 ): Promise<TemporaryFileResponse> {
   // 验证图片文件
@@ -95,7 +101,7 @@ export async function uploadImageFile(
     throw new Error(validation.error)
   }
 
-  return uploadToTemporaryFile(file, model, onProgress)
+  return uploadToTemporaryFile(file, model, apiKey, onProgress)
 }
 
 // 导出错误解析函数（新增）

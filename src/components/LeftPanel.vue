@@ -101,10 +101,14 @@ async function handleStartGenerate() {
     // 上传多张图片（使用百炼临时存储，与模型绑定）
     const uploadedImageUrls: string[] = []
     const model = va.selectedModel.value?.id || 'qwen3.5-flash'
+    const apiKey = va.currentApiKey.value
+    if (!apiKey) {
+      throw new Error('请先配置阿里百炼 API Key')
+    }
     for (let i = 0; i < va.imageFiles.value.length; i++) {
       const file = va.imageFiles.value[i]
       if (!va.imageUrls.value[i]) {
-        const uploadResult = await uploadToTemporaryFile(file, model)
+        const uploadResult = await uploadToTemporaryFile(file, model, apiKey)
         va.imageUrls.value[i] = uploadResult.downloadLink
       }
       uploadedImageUrls.push(va.imageUrls.value[i])

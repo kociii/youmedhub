@@ -298,6 +298,10 @@ export function useVideoAnalysis() {
       throw new Error('未选择视频文件')
     }
 
+    if (!dashscopeApiKey.value) {
+      throw new Error('请先配置阿里百炼 API Key')
+    }
+
     // 如果已经上传过，直接返回已有的 OSS URL
     if (videoUrl.value) {
       return videoUrl.value
@@ -310,6 +314,7 @@ export function useVideoAnalysis() {
       const response = await uploadToTemporaryFile(
         videoFile.value,
         selectedModel.value.id,
+        dashscopeApiKey.value,
         (loaded, total) => {
           uploadProgress.value = loaded / total
           onProgress?.(loaded, total)
@@ -331,6 +336,10 @@ export function useVideoAnalysis() {
       return []
     }
 
+    if (!dashscopeApiKey.value) {
+      throw new Error('请先配置阿里百炼 API Key')
+    }
+
     const uploadedUrls: string[] = []
     const totalFiles = imageFiles.value.length
 
@@ -345,6 +354,7 @@ export function useVideoAnalysis() {
       const response = await uploadToTemporaryFile(
         file,
         selectedModel.value.id,
+        dashscopeApiKey.value,
         (loaded, total) => {
           // 计算总体进度
           const fileProgress = loaded / total

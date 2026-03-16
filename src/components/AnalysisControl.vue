@@ -72,6 +72,10 @@ async function uploadVideo(): Promise<string> {
     throw new Error('请先选择视频')
   }
 
+  if (!va.currentApiKey.value) {
+    throw new Error('请先配置阿里百炼 API Key')
+  }
+
   isUploading.value = true
   uploadProgress.value = 0
   va.uploadStatus.value = 'uploading'
@@ -80,6 +84,7 @@ async function uploadVideo(): Promise<string> {
     const result = await uploadToTemporaryFile(
       va.videoFile.value,
       va.selectedModel.value?.id || 'qwen3.5-flash',
+      va.currentApiKey.value,
       (loaded, total) => {
         uploadProgress.value = total > 0 ? Math.round((loaded / total) * 100) : 0
       }

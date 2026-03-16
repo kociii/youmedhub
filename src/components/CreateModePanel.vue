@@ -379,6 +379,10 @@ async function handleAiOptimize() {
     // 1. 上传图片到临时存储（如果有的话，与模型绑定）
     const uploadedImageUrls: string[] = []
     const model = va.selectedModel.value?.id || 'qwen3.5-flash'
+    const apiKey = va.currentApiKey.value
+    if (!apiKey) {
+      throw new Error('请先配置阿里百炼 API Key')
+    }
     for (let i = 0; i < va.imageFiles.value.length; i++) {
       const file = va.imageFiles.value[i]
       // 如果已经有 URL 了，直接使用
@@ -386,7 +390,7 @@ async function handleAiOptimize() {
         uploadedImageUrls.push(va.imageUrls.value[i])
       } else {
         // 上传到百炼临时存储
-        const result = await uploadToTemporaryFile(file, model)
+        const result = await uploadToTemporaryFile(file, model, apiKey)
         uploadedImageUrls.push(result.downloadLink)
         // 保存 URL 避免重复上传
         va.imageUrls.value[i] = result.downloadLink
