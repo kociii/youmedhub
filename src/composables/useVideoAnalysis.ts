@@ -8,10 +8,11 @@ import type {
 } from '@/types/video'
 import { AVAILABLE_MODELS, DEFAULT_MODEL_ID, type ModelConfig } from '@/config/models'
 import type { AnalysisMode } from '@/prompts/videoAnalysis'
+import { uploadToTemporaryFile, type UploadProgressCallback } from '@/api/temporaryFile'
 
 const videoFile = ref<File | null>(null)
-const videoUrl = ref('')
-const localVideoUrl = ref('') // 本地预览 URL（object URL）
+const videoUrl = ref('') // OSS URL（提交后上传获取）
+const localVideoUrl = ref('') // 本地预览 URL（object URL，选择文件后立即生成）
 const uploadProgress = ref(0)
 const uploadStatus = ref<'idle' | 'uploading' | 'success' | 'error'>('idle')
 
@@ -67,8 +68,19 @@ const activeScriptCandidate = computed(() =>
 )
 const hasMultipleScriptCandidates = computed(() => scriptCandidates.value.length > 1)
 
-// 可用的视频预览 URL（优先本地，其次远程）
-const previewUrl = computed(() => localVideoUrl.value || videoUrl.value)
+// 可用的视频预览 URL（仅使用本地 URL，oss:// 格式无法预览）
+const previewUrl = computed(() => {
+  // 优先使用本地 URL（blob: 开头的 object URL）
+  if (localVideoUrl.value) {
+    return localVideoUrl.value
+  }
+  // 如果 videoUrl 是 http(s) 格式，可以使用
+  if (videoUrl.value && videoUrl.value.startsWith('http')) {
+    return videoUrl.value
+  }
+  // oss:// 格式无法直接预览，返回空字符串
+  return ''
+})
 
 // 当前 API Key
 const currentApiKey = computed(() => dashscopeApiKey.value)
@@ -85,6 +97,21 @@ export function useVideoAnalysis() {
   }
 
   function setSelectedModel(model: ModelConfig) {
+    // 如果模型变化且已有上传的文件，需要清空 URL（百炼临时存储与模型绑定）
+    const currentModelId = selectedModel.value?.id
+    if (currentModelId && currentModelId !== model.id) {
+      // 清空视频上传 URL
+      if (videoUrl.value) {
+        videoUrl.value = ''
+      }
+      // 清空图片上传 URL
+      if (imageUrls.value.length > 0) {
+        imageUrls.value = []
+      }
+      // 重置上传状态
+      uploadStatus.value = 'idle'
+      uploadProgress.value = 0
+    }
     selectedModel.value = model
   }
 
@@ -251,6 +278,93 @@ export function useVideoAnalysis() {
     imageUrls.value.splice(index, 1)
   }
 
+  // 设置视频文件（选择文件时调用，不触发上传）
+  function setVideoFile(file: File) {
+    // 释放旧的本地 URL
+    revokeLocalVideoUrl()
+    // 存储文件对象
+    videoFile.value = file
+    // 生成本地预览 URL
+    localVideoUrl.value = URL.createObjectURL(file)
+    // 重置 OSS URL（需要重新上传）
+    videoUrl.value = ''
+    uploadStatus.value = 'idle'
+    uploadProgress.value = 0
+  }
+
+  // 上传视频文件（提交时调用）
+  async function uploadVideo(onProgress?: UploadProgressCallback): Promise<string> {
+    if (!videoFile.value) {
+      throw new Error('未选择视频文件')
+    }
+
+    // 如果已经上传过，直接返回已有的 OSS URL
+    if (videoUrl.value) {
+      return videoUrl.value
+    }
+
+    uploadStatus.value = 'uploading'
+    uploadProgress.value = 0
+
+    try {
+      const response = await uploadToTemporaryFile(
+        videoFile.value,
+        selectedModel.value.id,
+        (loaded, total) => {
+          uploadProgress.value = loaded / total
+          onProgress?.(loaded, total)
+        }
+      )
+
+      videoUrl.value = response.downloadLink
+      uploadStatus.value = 'success'
+      return response.downloadLink
+    } catch (error) {
+      uploadStatus.value = 'error'
+      throw error
+    }
+  }
+
+  // 上传图片文件（提交时调用）
+  async function uploadImages(onProgress?: UploadProgressCallback): Promise<string[]> {
+    if (imageFiles.value.length === 0) {
+      return []
+    }
+
+    const uploadedUrls: string[] = []
+    const totalFiles = imageFiles.value.length
+
+    for (let i = 0; i < totalFiles; i++) {
+      // 如果已经有 OSS URL，跳过
+      if (imageUrls.value[i]) {
+        uploadedUrls.push(imageUrls.value[i])
+        continue
+      }
+
+      const file = imageFiles.value[i]
+      const response = await uploadToTemporaryFile(
+        file,
+        selectedModel.value.id,
+        (loaded, total) => {
+          // 计算总体进度
+          const fileProgress = loaded / total
+          const overallProgress = (i + fileProgress) / totalFiles
+          onProgress?.(overallProgress * 100, 100)
+        }
+      )
+
+      // 更新 imageUrls
+      if (i < imageUrls.value.length) {
+        imageUrls.value[i] = response.downloadLink
+      } else {
+        imageUrls.value.push(response.downloadLink)
+      }
+      uploadedUrls.push(response.downloadLink)
+    }
+
+    return uploadedUrls
+  }
+
   return {
     videoFile,
     videoUrl,
@@ -304,6 +418,11 @@ export function useVideoAnalysis() {
     addImageFile,
     removeImageFile,
     revokeLocalVideoUrl,
+    // 上传相关
+    setVideoFile,
+    uploadVideo,
+    uploadImages,
+    // UI 相关
     collapseConfigPanel,
   }
 }

@@ -223,8 +223,18 @@ const scriptCountNumber = computed(() => {
 const selectedModelId = computed({
   get: () => va.selectedModel.value?.id || 'qwen3.5-flash',
   set: (val: string) => {
+    const oldModelId = va.selectedModel.value?.id
     const model = AVAILABLE_MODELS.find(m => m.id === val)
-    if (model) va.setSelectedModel(model)
+    if (model) {
+      va.setSelectedModel(model)
+      // 如果模型变化且有已上传的文件，显示提示
+      if (oldModelId && oldModelId !== val && va.imageUrls.value.length > 0) {
+        modelChangeMessage.value = '已切换模型，图片与模型绑定，提交时将重新上传'
+        setTimeout(() => {
+          modelChangeMessage.value = ''
+        }, 5000)
+      }
+    }
   },
 })
 
@@ -251,6 +261,9 @@ const canGenerate = computed(() => {
   const lines = text.split('\n').filter(line => line.trim() && !line.startsWith('##'))
   return lines.length > 0
 })
+
+// 模型切换提示
+const modelChangeMessage = ref('')
 
 function handleVideoTypeChange(typeKey: string) {
   if (typeKey === selectedVideoType.value) return
@@ -363,16 +376,17 @@ async function handleAiOptimize() {
   let streamedContent = ''
 
   try {
-    // 1. 上传图片到 OSS（如果有的话）
+    // 1. 上传图片到临时存储（如果有的话，与模型绑定）
     const uploadedImageUrls: string[] = []
+    const model = va.selectedModel.value?.id || 'qwen3.5-flash'
     for (let i = 0; i < va.imageFiles.value.length; i++) {
       const file = va.imageFiles.value[i]
       // 如果已经有 URL 了，直接使用
       if (va.imageUrls.value[i]) {
         uploadedImageUrls.push(va.imageUrls.value[i])
       } else {
-        // 上传到 OSS
-        const result = await uploadToTemporaryFile(file)
+        // 上传到百炼临时存储
+        const result = await uploadToTemporaryFile(file, model)
         uploadedImageUrls.push(result.downloadLink)
         // 保存 URL 避免重复上传
         va.imageUrls.value[i] = result.downloadLink
@@ -602,6 +616,10 @@ defineExpose({
           <span class="text-purple-700">思考</span>
         </Button>
       </div>
+    </div>
+
+    <div v-if="modelChangeMessage" class="rounded-md bg-blue-500/10 p-2 text-[10px] text-blue-600">
+      {{ modelChangeMessage }}
     </div>
 
     <div v-if="!va.currentApiKey.value" class="rounded-md bg-muted p-2 text-[10px] text-muted-foreground">

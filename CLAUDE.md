@@ -17,10 +17,11 @@
 |------|------|
 | `@supabase/supabase-js` | 用户认证和数据存储 |
 | `@vueuse/core` | Vue 组合式工具函数 |
-| `ali-oss` | 阿里云 OSS 浏览器直传 |
 | `markstream-vue` | Markdown 流式渲染 |
 | `xlsx` | Excel 导出 |
 | `lucide-vue-next` | 图标库 |
+
+> **v0.2.3 变更**：移除了 `ali-oss` 依赖，使用阿里云百炼临时存储替代自建 OSS。
 
 ## 开发命令
 
@@ -42,9 +43,10 @@ npm run preview  # 预览生产构建
 src/
 ├── api/
 │   ├── analysis.ts              # 分析 API 统一入口
+│   ├── dashscope-upload.ts      # [v0.2.3新增] 百炼临时存储上传
 │   ├── providers/
 │   │   └── aliyun.ts            # 阿里百炼 API
-│   ├── temporaryFile.ts         # OSS 上传
+│   ├── temporaryFile.ts         # [v0.2.3修改] 改为调用百炼上传
 │   └── videoAnalysis.ts         # 视频分析（SSE 流式）
 ├── components/
 │   ├── layout/                  # 布局组件
@@ -100,9 +102,9 @@ src/
 ├── main.ts
 ├── env.d.ts
 └── style.css
-api/
-└── oss-sts.ts                   # Vercel Serverless（STS 凭证）
 ```
+
+> **v0.2.3 变更**：移除了 `api/oss-sts.ts` Vercel Serverless Function，不再需要 STS 临时凭证。
 
 ### 路由架构
 
@@ -183,12 +185,9 @@ const body = {
 **前端（VITE_ 前缀）**：
 
 - `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` - Supabase（必须）
-- `VITE_ALIYUN_*` - 阿里云 OSS
 - `VITE_DASHSCOPE_API_KEY` - 阿里百炼（可选，可在界面配置）
 
-**后端（Vercel）**：
-
-- `ALIYUN_*` - STS 临时凭证生成
+> **v0.2.3 变更**：移除了所有 OSS 相关环境变量（`VITE_ALIYUN_OSS_*`、`ALIYUN_*`），使用百炼临时存储。
 
 ## 开发规范
 
@@ -209,6 +208,43 @@ const body = {
 - **SSE 流解析**：已实现 buffer 机制，修改时需保留
 - **全局状态单例**：新增状态需定义在模块顶层
 - **VideoSegmentPlayer**：大量行数（50+）时考虑虚拟滚动
+
+## v0.2.3 存储方案重构
+
+### 架构变更
+
+**存储方案迁移**：从自建阿里云 OSS 迁移至阿里云百炼临时存储
+
+| 变更项 | 变更前 | 变更后 |
+|--------|--------|--------|
+| 上传方式 | ali-oss SDK 直传 | 标准表单 POST |
+| 凭证获取 | Vercel STS Serverless | 百炼 API 直接获取 |
+| URL 格式 | `https://...` 签名 URL | `oss://...` 临时 URL |
+| 有效期 | 24 小时（可配置） | 48 小时（固定） |
+| 环境变量 | 5+ 个 OSS 相关 | 仅需 API Key |
+
+### 文件变更
+
+- **新增**：`src/api/dashscope-upload.ts` - 百炼临时存储上传封装
+- **修改**：`src/api/temporaryFile.ts` - 改为调用新上传模块
+- **修改**：`src/lib/openai-client.ts` - 添加 `X-DashScope-OssResourceResolve` Header
+- **修改**：`src/composables/useVideoAnalysis.ts` - 分离本地文件和 OSS URL
+- **删除**：`api/oss-sts.ts` - 移除 Vercel Serverless Function
+- **删除**：`ali-oss` 依赖
+
+### 交互变更
+
+**v0.2.3 新交互**：
+1. 选择文件 → 仅生成本地预览 URL（`blob:`）
+2. 本地预览播放使用本地文件
+3. 点击提交 → 上传文件 → 获取 `oss://` URL
+4. AI 调用使用 `oss://` URL（需添加 Header）
+
+### 待完成功能
+
+1. **视频分析页适配**：修改提交逻辑，先上传再调用 AI
+2. **图片上传适配**：参考生成模式的图片上传逻辑
+3. **模型切换提示**：切换模型后需重新上传（文件与模型绑定）
 
 ## v0.2.2 审查修复记录
 

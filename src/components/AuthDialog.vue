@@ -33,6 +33,31 @@ const error = ref('')
 const success = ref('')
 const activeTab = ref('login')
 
+// Supabase 错误信息中文翻译
+function translateError(errorMessage: string): string {
+  const errorMap: Record<string, string> = {
+    'Invalid login credentials': '邮箱或密码错误',
+    'Email not confirmed': '邮箱未验证，请查收验证邮件',
+    'User already registered': '该邮箱已注册，请直接登录',
+    'Password should be at least 6 characters': '密码长度至少 6 位',
+    'Unable to validate email address': '邮箱格式不正确',
+    'Signups not allowed': '暂不允许注册',
+    'Email rate limit exceeded': '邮件发送过于频繁，请稍后再试',
+    'Invalid email': '邮箱格式不正确',
+    'User not found': '用户不存在',
+    'Invalid password': '密码错误',
+    'New password should be different from the old password': '新密码不能与旧密码相同',
+  }
+
+  for (const [key, value] of Object.entries(errorMap)) {
+    if (errorMessage.toLowerCase().includes(key.toLowerCase())) {
+      return value
+    }
+  }
+
+  return errorMessage
+}
+
 // 重置表单
 function resetForm() {
   email.value = ''
@@ -57,7 +82,8 @@ async function handleLogin() {
     emit('update:open', false)
     resetForm()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '登录失败'
+    const msg = e instanceof Error ? e.message : '登录失败'
+    error.value = translateError(msg)
   } finally {
     loading.value = false
   }
@@ -84,15 +110,25 @@ async function handleRegister() {
   error.value = ''
 
   try {
-    await auth.signUp(email.value, password.value)
-    // 注册成功后清空表单，切换到登录 tab
-    success.value = '注册成功！请登录'
-    setTimeout(() => {
-      resetForm()
-      activeTab.value = 'login'
-    }, 1500)
+    const result = await auth.signUp(email.value, password.value)
+    // 如果注册成功且返回了 session（无需邮箱验证），直接登录
+    if (result.session) {
+      success.value = '注册成功！'
+      setTimeout(() => {
+        emit('update:open', false)
+        resetForm()
+      }, 1000)
+    } else {
+      // 需要邮箱验证
+      success.value = '注册成功！请查收验证邮件后登录'
+      setTimeout(() => {
+        resetForm()
+        activeTab.value = 'login'
+      }, 2000)
+    }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '注册失败'
+    const msg = e instanceof Error ? e.message : '注册失败'
+    error.value = translateError(msg)
   } finally {
     loading.value = false
   }
@@ -106,7 +142,8 @@ async function handleGitHubLogin() {
   try {
     await auth.signInWithGitHub()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'GitHub 登录失败'
+    const msg = e instanceof Error ? e.message : 'GitHub 登录失败'
+    error.value = translateError(msg)
     loading.value = false
   }
 }

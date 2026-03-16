@@ -47,6 +47,7 @@ export async function streamChat(options: StreamOptions): Promise<string> {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
+      'X-DashScope-OssResourceResolve': 'enable', // 支持 oss:// URL 格式
     },
     body: JSON.stringify(body),
   })
@@ -140,6 +141,7 @@ export async function chat(options: ChatOptions): Promise<{
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
+      'X-DashScope-OssResourceResolve': 'enable', // 支持 oss:// URL 格式
     },
     body: JSON.stringify({
       model,

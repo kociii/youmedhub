@@ -28,13 +28,25 @@ const showAuthDialog = ref(false)
 const isUploading = ref(false)
 const uploadProgress = ref(0)
 
+// 模型切换提示
+const modelChangeMessage = ref('')
+
 // 模型选择
 const selectedModelId = computed({
   get: () => va.selectedModel.value?.id || 'qwen3.5-flash',
   set: (val: string) => {
+    const oldModelId = va.selectedModel.value?.id
     const model = AVAILABLE_MODELS.find(m => m.id === val)
     if (model) {
       va.setSelectedModel(model)
+      // 如果模型变化且有已上传的文件，显示提示
+      if (oldModelId && oldModelId !== val && (va.videoUrl.value || va.imageUrls.value.length > 0)) {
+        modelChangeMessage.value = '已切换模型，文件与模型绑定，提交时将重新上传'
+        // 3秒后自动清除提示
+        setTimeout(() => {
+          modelChangeMessage.value = ''
+        }, 5000)
+      }
     }
   }
 })
@@ -65,9 +77,13 @@ async function uploadVideo(): Promise<string> {
   va.uploadStatus.value = 'uploading'
 
   try {
-    const result = await uploadToTemporaryFile(va.videoFile.value, (loaded, total) => {
-      uploadProgress.value = total > 0 ? Math.round((loaded / total) * 100) : 0
-    })
+    const result = await uploadToTemporaryFile(
+      va.videoFile.value,
+      va.selectedModel.value?.id || 'qwen3.5-flash',
+      (loaded, total) => {
+        uploadProgress.value = total > 0 ? Math.round((loaded / total) * 100) : 0
+      }
+    )
     va.videoUrl.value = result.downloadLink
     va.uploadStatus.value = 'success'
     // 上传完成后释放本地预览 URL，使用远程 URL
@@ -195,6 +211,11 @@ defineExpose({
     <!-- API Key 状态提示 -->
     <div v-if="!hasApiKey" class="rounded-md bg-muted p-3 text-xs text-muted-foreground">
       请先配置阿里百炼 API Key
+    </div>
+
+    <!-- 模型切换提示 -->
+    <div v-if="modelChangeMessage" class="rounded-md bg-blue-500/10 p-3 text-xs text-blue-600">
+      {{ modelChangeMessage }}
     </div>
 
     <!-- 上传进度 -->

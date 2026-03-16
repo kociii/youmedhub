@@ -219,9 +219,9 @@ async function analyzeVideoByTemporaryFile(
     throw new Error(validation.error)
   }
 
-  onProgress?.('正在上传视频到临时文件服务...')
+  onProgress?.('正在上传视频到临时存储...')
 
-  const uploadResult = await uploadToTemporaryFile(file)
+  const uploadResult = await uploadToTemporaryFile(file, model)
 
   onProgress?.('视频上传成功，正在调用 AI 分析...')
 
