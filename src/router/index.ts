@@ -6,6 +6,7 @@ const router = createRouter({
   routes: [
     {
       path: '/',
+      name: 'home',
       components: {
         default: () => import('@/views/HomePage.vue'),
       },
@@ -28,6 +29,14 @@ const router = createRouter({
         config: () => import('@/components/LeftPanel.vue'),
       },
       meta: { title: '脚本生成', hasConfig: true, requiresAuth: false },
+    },
+    {
+      path: '/history',
+      name: 'history',
+      components: {
+        default: () => import('@/views/HistoryPage.vue'),
+      },
+      meta: { title: '历史记录', requiresAuth: true },
     },
     {
       path: '/favorites',

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Home, Sparkles, FileText, Heart, Settings, LogIn, LogOut, User } from 'lucide-vue-next'
+import { Home, Sparkles, FileText, History, Heart, Settings, LogIn, LogOut, User } from 'lucide-vue-next'
 import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/components/ui/toast'
 import AuthDialog from '@/components/AuthDialog.vue'
@@ -36,6 +36,7 @@ const mainMenuItems = [
 
 // 底部菜单
 const bottomMenuItems = [
+  { name: 'history', label: '历史记录', icon: History, path: '/history' },
   { name: 'favorites', label: '我的收藏', icon: Heart, path: '/favorites' },
   { name: 'settings', label: '设置', icon: Settings, path: '/settings' },
 ]
