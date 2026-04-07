@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Home, Sparkles, FileText, History, Heart, Settings, LogIn, LogOut, User } from 'lucide-vue-next'
+import { Home, Sparkles, FileText, FolderKanban, History, Heart, Settings, LogIn, LogOut, User } from 'lucide-vue-next'
 import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/components/ui/toast'
 import AuthDialog from '@/components/AuthDialog.vue'
@@ -32,6 +32,7 @@ const mainMenuItems = [
   { name: 'home', label: '首页', icon: Home, path: '/' },
   { name: 'analyze', label: '拆解脚本', icon: Sparkles, path: '/analyze' },
   { name: 'create', label: '脚本生成', icon: FileText, path: '/create' },
+  { name: 'projects', label: '项目', icon: FolderKanban, path: '/projects' },
 ]
 
 // 底部菜单

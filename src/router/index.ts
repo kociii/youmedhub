@@ -31,6 +31,30 @@ const router = createRouter({
       meta: { title: '脚本生成', hasConfig: true, requiresAuth: false },
     },
     {
+      path: '/projects',
+      name: 'projects',
+      components: {
+        default: () => import('@/views/ProjectsPage.vue'),
+      },
+      meta: { title: '项目', requiresAuth: true },
+    },
+    {
+      path: '/projects/:id',
+      name: 'project-canvas',
+      components: {
+        default: () => import('@/views/ProjectCanvasPage.vue'),
+      },
+      meta: { title: '项目画布', requiresAuth: true, standalone: true },
+    },
+    {
+      path: '/share/projects/:token',
+      name: 'project-share',
+      components: {
+        default: () => import('@/views/ProjectSharePage.vue'),
+      },
+      meta: { title: '项目分享', standalone: true, requiresAuth: false },
+    },
+    {
       path: '/history',
       name: 'history',
       components: {
