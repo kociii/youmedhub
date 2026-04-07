@@ -12,6 +12,8 @@
 - `src/components/layout/AppLayout.vue`
 - `src/components/ResultToolbar.vue`
 - `src/composables/useVideoAnalysis.ts`
+- `src/views/ProjectCanvasPage.vue`
+- `src/projects/types.ts`
 
 ### 结论
 
@@ -19,6 +21,7 @@
 - AI 任务状态不应继续堆入 `useVideoAnalysis`。
 - 画布文件存储统一走阿里云 OSS；Supabase 仅保存可检索、可恢复的结构化元数据。
 - 项目内 AI 调用统一复用现有阿里百炼通道（`src/api/analysis.ts` + `src/api/providers/aliyun.ts`），保持“一套 Key、多种能力”。
+- 当前画布交互已经开始受节点规则和主题模式影响，本版需要把这些规则固化到类型和交互层，而不是散落在页面分支中。
 
 ---
 
@@ -68,11 +71,16 @@ src/projects/
   - 连线数据结构
   - 锚点计算
   - 选中与删除
+  - 校验节点是否允许连线
 
 - `useProjectAi.ts`
   - 复用现有模型配置与百炼统一 API Key
   - 但单独维护画布节点级任务状态
   - AI 生成的图片/视频结果统一先落 OSS，再写入 `project_assets`
+
+- `useProjectTheme.ts`
+  - 管理浅色 / 暗黑主题状态
+  - 为画布背景、节点卡片、连线图层输出主题 token
 
 - `projectShares.ts`
   - 生成分享 token
@@ -108,6 +116,12 @@ interface AiCallCardResult {
 1. `outputType` 必填且只允许枚举值。
 2. 执行结果写回当前 `ai_call` 卡片的结果区。
 3. `image/video` 结果先上传 OSS，再记录到 `project_assets`，卡片只保存元数据引用。
+
+## 连线规则建议
+
+- `note` 节点在 schema 层增加 `connectable: false` 或等效约束。
+- 连线创建前必须校验源节点和目标节点的可连线状态。
+- 左侧节点添加区和属性栏都应明确展示 `note` 节点“不参与连线”的角色。
 
 ---
 
