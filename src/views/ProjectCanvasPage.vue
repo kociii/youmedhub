@@ -13,12 +13,12 @@ import {
   Sparkles,
   StickyNote,
   Sun,
-  Trash2,
   Upload,
   ZoomIn,
   ZoomOut,
 } from 'lucide-vue-next'
 import { useProjects } from '@/composables/useProjects'
+import type { ProjectAssetRecord } from '@/composables/useProjects'
 import { useProjectModelRegistry } from '@/composables/useProjectModelRegistry'
 import { runProjectAiCard } from '@/api/projectAi'
 import { parseUploadError, uploadImageFile, uploadVideoFile, validateVideoFile } from '@/api/temporaryFile'
@@ -54,7 +54,6 @@ const { toast } = useToast()
 const modelRegistry = useProjectModelRegistry()
 
 const PROJECT_CANVAS_THEME_KEY = 'project_canvas_theme'
-const PROJECT_CANVAS_ASSET_LIBRARY_KEY = 'project_canvas_asset_library'
 
 interface ProjectAssetLibraryItem {
   id: string
@@ -64,7 +63,7 @@ interface ProjectAssetLibraryItem {
   asset: ProjectAssetRef
 }
 
-type InteractionMode = 'idle' | 'pan' | 'drag' | 'resize'
+type InteractionMode = 'idle' | 'pan' | 'drag' | 'resize' | 'marquee'
 type ResizeHandle = 'right' | 'bottom' | 'corner'
 
 const loading = ref(true)
@@ -74,9 +73,12 @@ const dragOver = ref(false)
 const projectTitle = ref('')
 const sourceType = ref('')
 const selectedNodeId = ref('')
+const selectedNodeIds = ref<string[]>([])
 const nodes = ref<ProjectCanvasNode[]>([])
 const viewport = ref({ x: 40, y: 40, zoom: 1 })
 const theme = ref<'light' | 'dark'>('dark')
+const isSpacePressed = ref(false)
+const platformType = ref<'mac' | 'windows' | 'other'>('other')
 
 const editingTextNodeId = ref('')
 const editingNoteNodeId = ref('')
@@ -88,6 +90,7 @@ const assetLibrary = ref<ProjectAssetLibraryItem[]>([])
 const resourceDialogOpen = ref(false)
 const resourceDialogNodeId = ref('')
 const resourceDialogType = ref<'image' | 'video'>('image')
+const mediaPreviewIndex = ref<Record<string, string>>({})
 
 const pendingUploadNodeId = ref('')
 const imageUploadInputRef = ref<HTMLInputElement | null>(null)
@@ -119,22 +122,60 @@ const interactionState = ref<{
   nodeHeight: 0,
   resizeHandle: 'corner',
 })
+const marqueeState = ref({
+  active: false,
+  startClientX: 0,
+  startClientY: 0,
+  currentClientX: 0,
+  currentClientY: 0,
+  startWorldX: 0,
+  startWorldY: 0,
+  currentWorldX: 0,
+  currentWorldY: 0,
+})
+const lastContextToastAt = ref(0)
+const gestureState = ref({
+  active: false,
+  startZoom: 1,
+  startViewportX: 0,
+  startViewportY: 0,
+  anchorLocalX: 0,
+  anchorLocalY: 0,
+})
 
 const projectId = computed(() => String(route.params.id || ''))
 const zoomPercent = computed(() => `${Math.round(viewport.value.zoom * 100)}%`)
-const selectedNode = computed(() => nodes.value.find(item => item.id === selectedNodeId.value) || null)
+const isMacOS = computed(() => platformType.value === 'mac')
+const isWindowsOS = computed(() => platformType.value === 'windows')
+const selectedNode = computed(() => {
+  const primaryId = selectedNodeIds.value[0] || selectedNodeId.value
+  return nodes.value.find(item => item.id === primaryId) || null
+})
 const isDarkMode = computed(() => theme.value === 'dark')
 const canvasThemeClass = computed(() => {
   if (isDarkMode.value) {
-    return 'bg-[#0b0d12] text-slate-100'
+    return 'bg-[#141a27] text-slate-100'
   }
   return 'bg-[#f7f8fb] text-slate-900'
 })
 
-const canvasStyle = computed(() => ({
-  transform: `translate(${viewport.value.x}px, ${viewport.value.y}px) scale(${viewport.value.zoom})`,
+const canvasStyle = computed<Record<string, string>>(() => ({
+  transform: `translate3d(${viewport.value.x}px, ${viewport.value.y}px, 0) scale(${viewport.value.zoom})`,
   transformOrigin: '0 0',
+  willChange: 'transform',
 }))
+const marqueeStyle = computed(() => {
+  const left = Math.min(marqueeState.value.startClientX, marqueeState.value.currentClientX)
+  const top = Math.min(marqueeState.value.startClientY, marqueeState.value.currentClientY)
+  const width = Math.abs(marqueeState.value.currentClientX - marqueeState.value.startClientX)
+  const height = Math.abs(marqueeState.value.currentClientY - marqueeState.value.startClientY)
+  return {
+    left: `${left}px`,
+    top: `${top}px`,
+    width: `${width}px`,
+    height: `${height}px`,
+  }
+})
 
 const currentApiKey = computed(() => {
   return localStorage.getItem('dashscope_api_key') || import.meta.env.VITE_DASHSCOPE_API_KEY || ''
@@ -190,12 +231,40 @@ function isAiNode(node: ProjectCanvasNode): node is ProjectAiCallNode {
   return node.type === 'ai_call'
 }
 
+function getMediaAspectRatio(node: ProjectCanvasNode): number {
+  if (!isImageNode(node) && !isVideoNode(node)) return 0
+  const width = Number(node.data.asset.width || 0)
+  const height = Number(node.data.asset.height || 0)
+  if (!width || !height) return 0
+  return width / height
+}
+
+function normalizeMediaNodeSize(node: ProjectCanvasNode, mode: 'keep_width' | 'keep_height' = 'keep_width') {
+  if (!isImageNode(node) && !isVideoNode(node)) return
+  const ratio = getMediaAspectRatio(node)
+  if (!ratio) return
+
+  const minWidth = 220
+  const minHeight = 140
+  if (mode === 'keep_height') {
+    node.height = Math.max(minHeight, node.height)
+    node.width = Math.max(minWidth, node.height * ratio)
+    return
+  }
+  node.width = Math.max(minWidth, node.width)
+  node.height = Math.max(minHeight, node.width / ratio)
+}
+
 function normalizeLoadedNodes(rawNodes: ProjectCanvasNode[]): ProjectCanvasNode[] {
-  return rawNodes.map(node => ({
-    ...node,
-    width: node.width || getDefaultNodeSize(node.type).width,
-    height: node.height || getDefaultNodeSize(node.type).height,
-  }))
+  return rawNodes.map((node) => {
+    const normalized = {
+      ...node,
+      width: node.width || getDefaultNodeSize(node.type).width,
+      height: node.height || getDefaultNodeSize(node.type).height,
+    }
+    normalizeMediaNodeSize(normalized, 'keep_width')
+    return normalized
+  })
 }
 
 function getDefaultNodeSize(type: ProjectNodeType): { width: number; height: number } {
@@ -385,14 +454,30 @@ function addNode(type: ProjectNodeType, position?: { x: number; y: number }, avo
   }
   nodes.value.push(newNode)
   selectedNodeId.value = newNode.id
+  selectedNodeIds.value = [newNode.id]
   if (newNode.type === 'image' || newNode.type === 'video') {
     mediaMenuNodeId.value = newNode.id
   }
 }
 
+function removeNodeById(nodeId: string) {
+  nodes.value = nodes.value.filter(item => item.id !== nodeId)
+  selectedNodeIds.value = selectedNodeIds.value.filter(id => id !== nodeId)
+  if (selectedNodeId.value === nodeId) {
+    selectedNodeId.value = ''
+  }
+}
+
 function removeSelectedNode() {
   if (!selectedNode.value) return
-  nodes.value = nodes.value.filter(item => item.id !== selectedNode.value?.id)
+  removeNodeById(selectedNode.value.id)
+}
+
+function removeSelectedNodes() {
+  if (!selectedNodeIds.value.length) return
+  const selectedSet = new Set(selectedNodeIds.value)
+  nodes.value = nodes.value.filter(item => !selectedSet.has(item.id))
+  selectedNodeIds.value = []
   selectedNodeId.value = ''
 }
 
@@ -412,48 +497,64 @@ function toggleTheme() {
   localStorage.setItem(PROJECT_CANVAS_THEME_KEY, theme.value)
 }
 
-function loadAssetLibrary() {
-  try {
-    const raw = localStorage.getItem(PROJECT_CANVAS_ASSET_LIBRARY_KEY)
-    if (!raw) {
-      assetLibrary.value = []
-      return
+function parseOssLocation(ossUrl: string): { bucket: string; objectKey: string } {
+  const normalized = ossUrl.replace(/^oss:\/\//, '')
+  const slashIndex = normalized.indexOf('/')
+  if (slashIndex === -1) {
+    return {
+      bucket: normalized || 'dashscope-temp',
+      objectKey: normalized,
     }
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      assetLibrary.value = []
-      return
-    }
-    assetLibrary.value = parsed.filter((item): item is ProjectAssetLibraryItem => {
-      return Boolean(
-        item &&
-        typeof item.id === 'string' &&
-        (item.type === 'image' || item.type === 'video') &&
-        item.asset &&
-        typeof item.asset.provider === 'string',
-      )
-    })
-  } catch {
-    assetLibrary.value = []
+  }
+  return {
+    bucket: normalized.slice(0, slashIndex) || 'dashscope-temp',
+    objectKey: normalized.slice(slashIndex + 1),
   }
 }
 
-function persistAssetLibrary() {
-  localStorage.setItem(PROJECT_CANVAS_ASSET_LIBRARY_KEY, JSON.stringify(assetLibrary.value.slice(0, 500)))
+function mapAssetRecordToLibraryItem(record: ProjectAssetRecord): ProjectAssetLibraryItem | null {
+  if (record.asset_type !== 'image' && record.asset_type !== 'video') {
+    return null
+  }
+  return {
+    id: record.id,
+    type: record.asset_type,
+    title: record.file_name || `${record.asset_type === 'image' ? '图片' : '视频'}资源`,
+    createdAt: record.created_at,
+    asset: {
+      assetId: record.id,
+      provider: 'aliyun-oss',
+      bucket: record.bucket,
+      objectKey: record.object_key,
+      url: record.public_url || record.oss_url || '',
+      mimeType: record.mime_type,
+      sizeBytes: record.size_bytes,
+      width: record.width,
+      height: record.height,
+      durationMs: record.duration_ms,
+    },
+  }
 }
 
-function pushAssetToLibrary(type: 'image' | 'video', asset: ProjectAssetRef, title: string) {
-  assetLibrary.value = [
-    {
-      id: `asset_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
-      type,
-      title,
-      createdAt: new Date().toISOString(),
-      asset,
-    },
-    ...assetLibrary.value,
-  ]
-  persistAssetLibrary()
+async function loadAssetLibrary() {
+  try {
+    const [imageAssets, videoAssets] = await Promise.all([
+      projectStore.listProjectAssets({ assetType: 'image', limit: 150 }),
+      projectStore.listProjectAssets({ assetType: 'video', limit: 150 }),
+    ])
+    const mapped = [...imageAssets, ...videoAssets]
+      .map(mapAssetRecordToLibraryItem)
+      .filter((item): item is ProjectAssetLibraryItem => Boolean(item))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    assetLibrary.value = mapped
+  } catch (error) {
+    assetLibrary.value = []
+    toast({
+      title: '资源库加载失败',
+      description: error instanceof Error ? error.message : '请稍后重试',
+      variant: 'destructive',
+    })
+  }
 }
 
 async function loadProject() {
@@ -479,16 +580,63 @@ async function loadProject() {
 }
 
 function onBackgroundPointerDown(event: PointerEvent) {
-  if (event.button !== 0 && event.button !== 1) return
+  if (event.button !== 0 && event.button !== 1 && event.button !== 2) return
   if (event.button === 0 && (event.target as HTMLElement)?.closest('[data-role="project-node"]')) return
-  if (event.button === 1) {
+
+  if (event.button === 2) {
     event.preventDefault()
+    const now = Date.now()
+    if (now - lastContextToastAt.value > 1200) {
+      toast({
+        title: '画布属性功能开发中',
+        description: '右键将用于画布属性操作，当前暂未开放。',
+      })
+      lastContextToastAt.value = now
+    }
+    return
   }
+
+  const shouldPan = event.button === 1 || (event.button === 0 && isSpacePressed.value)
+  if (shouldPan) {
+    event.preventDefault()
+    interactionState.value = {
+      mode: 'pan',
+      startX: event.clientX,
+      startY: event.clientY,
+      viewportX: viewport.value.x,
+      viewportY: viewport.value.y,
+      dragNodeId: '',
+      nodeX: 0,
+      nodeY: 0,
+      nodeWidth: 0,
+      nodeHeight: 0,
+      resizeHandle: 'corner',
+    }
+    return
+  }
+
+  if (event.button !== 0) return
+  event.preventDefault()
+  event.stopPropagation()
+
   selectedNodeId.value = ''
+  selectedNodeIds.value = []
   mediaMenuNodeId.value = ''
   aiConfigNodeId.value = ''
+  const world = getCanvasPositionFromClient(event.clientX, event.clientY)
+  marqueeState.value = {
+    active: true,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    currentClientX: event.clientX,
+    currentClientY: event.clientY,
+    startWorldX: world.x,
+    startWorldY: world.y,
+    currentWorldX: world.x,
+    currentWorldY: world.y,
+  }
   interactionState.value = {
-    mode: 'pan',
+    mode: 'marquee',
     startX: event.clientX,
     startY: event.clientY,
     viewportX: viewport.value.x,
@@ -503,7 +651,21 @@ function onBackgroundPointerDown(event: PointerEvent) {
 }
 
 function onNodePointerDown(event: PointerEvent, node: ProjectCanvasNode) {
-  if (event.button === 1) {
+  if (event.button === 2) {
+    event.preventDefault()
+    event.stopPropagation()
+    const now = Date.now()
+    if (now - lastContextToastAt.value > 1200) {
+      toast({
+        title: '画布属性功能开发中',
+        description: '右键将用于画布属性操作，当前暂未开放。',
+      })
+      lastContextToastAt.value = now
+    }
+    return
+  }
+
+  if (event.button === 1 || (event.button === 0 && isSpacePressed.value)) {
     event.preventDefault()
     event.stopPropagation()
     interactionState.value = {
@@ -521,12 +683,14 @@ function onNodePointerDown(event: PointerEvent, node: ProjectCanvasNode) {
     }
     return
   }
+
   if (event.button !== 0) return
   const target = event.target as HTMLElement
   if (target.closest('[data-no-drag="true"]')) return
 
   event.stopPropagation()
   selectedNodeId.value = node.id
+  selectedNodeIds.value = [node.id]
   if (node.type === 'image' || node.type === 'video') {
     mediaMenuNodeId.value = node.id
   } else {
@@ -552,6 +716,7 @@ function onResizePointerDown(event: PointerEvent, node: ProjectCanvasNode, handl
   if (event.button !== 0) return
   event.stopPropagation()
   selectedNodeId.value = node.id
+  selectedNodeIds.value = [node.id]
   interactionState.value = {
     mode: 'resize',
     startX: event.clientX,
@@ -570,11 +735,20 @@ function onResizePointerDown(event: PointerEvent, node: ProjectCanvasNode, handl
 function onPointerMove(event: PointerEvent) {
   if (interactionState.value.mode === 'idle') return
 
+  if (interactionState.value.mode === 'marquee') {
+    marqueeState.value.currentClientX = event.clientX
+    marqueeState.value.currentClientY = event.clientY
+    const world = getCanvasPositionFromClient(event.clientX, event.clientY)
+    marqueeState.value.currentWorldX = world.x
+    marqueeState.value.currentWorldY = world.y
+    return
+  }
+
   if (interactionState.value.mode === 'pan') {
     const deltaX = event.clientX - interactionState.value.startX
     const deltaY = event.clientY - interactionState.value.startY
-    viewport.value.x = interactionState.value.viewportX + deltaX
-    viewport.value.y = interactionState.value.viewportY + deltaY
+    viewport.value.x = Math.round(interactionState.value.viewportX + deltaX)
+    viewport.value.y = Math.round(interactionState.value.viewportY + deltaY)
     return
   }
 
@@ -592,6 +766,30 @@ function onPointerMove(event: PointerEvent) {
 
   const minWidth = targetNode.type === 'note' ? 220 : 260
   const minHeight = targetNode.type === 'note' ? 110 : 140
+  const mediaRatio = getMediaAspectRatio(targetNode)
+
+  if ((isImageNode(targetNode) || isVideoNode(targetNode)) && mediaRatio > 0) {
+    if (interactionState.value.resizeHandle === 'right') {
+      targetNode.width = Math.max(minWidth, interactionState.value.nodeWidth + deltaX)
+      targetNode.height = Math.max(minHeight, targetNode.width / mediaRatio)
+      return
+    }
+
+    if (interactionState.value.resizeHandle === 'bottom') {
+      targetNode.height = Math.max(minHeight, interactionState.value.nodeHeight + deltaY)
+      targetNode.width = Math.max(minWidth, targetNode.height * mediaRatio)
+      return
+    }
+
+    const widthByX = Math.max(minWidth, interactionState.value.nodeWidth + deltaX)
+    const widthByY = Math.max(minWidth, (interactionState.value.nodeHeight + deltaY) * mediaRatio)
+    const widthDelta = Math.abs(widthByX - interactionState.value.nodeWidth)
+    const heightDelta = Math.abs(widthByY - interactionState.value.nodeWidth)
+    const nextWidth = widthDelta >= heightDelta ? widthByX : widthByY
+    targetNode.width = nextWidth
+    targetNode.height = Math.max(minHeight, nextWidth / mediaRatio)
+    return
+  }
 
   if (interactionState.value.resizeHandle === 'right' || interactionState.value.resizeHandle === 'corner') {
     targetNode.width = Math.max(minWidth, interactionState.value.nodeWidth + deltaX)
@@ -603,19 +801,50 @@ function onPointerMove(event: PointerEvent) {
 }
 
 function onPointerUp() {
+  if (interactionState.value.mode === 'marquee' && marqueeState.value.active) {
+    const minX = Math.min(marqueeState.value.startWorldX, marqueeState.value.currentWorldX)
+    const maxX = Math.max(marqueeState.value.startWorldX, marqueeState.value.currentWorldX)
+    const minY = Math.min(marqueeState.value.startWorldY, marqueeState.value.currentWorldY)
+    const maxY = Math.max(marqueeState.value.startWorldY, marqueeState.value.currentWorldY)
+    const pick = nodes.value
+      .filter((node) => {
+        const nodeMinX = node.x
+        const nodeMaxX = node.x + node.width
+        const nodeMinY = node.y
+        const nodeMaxY = node.y + node.height
+        return !(nodeMaxX < minX || nodeMinX > maxX || nodeMaxY < minY || nodeMinY > maxY)
+      })
+      .map(node => node.id)
+    selectedNodeIds.value = pick
+    selectedNodeId.value = pick[0] || ''
+  }
+  marqueeState.value.active = false
   interactionState.value.mode = 'idle'
 }
 
 function onWheel(event: WheelEvent) {
   const host = canvasHostRef.value
   if (!host) return
+
+  const isZoomGesture = isMacOS.value ? (event.metaKey || event.ctrlKey) : isWindowsOS.value ? event.ctrlKey : (event.metaKey || event.ctrlKey)
+  if (!isZoomGesture && !isMacOS.value) {
+    return
+  }
+
   event.preventDefault()
 
+  if (!isZoomGesture) {
+    viewport.value.x -= event.deltaX
+    viewport.value.y -= event.deltaY
+    return
+  }
+
   const rect = host.getBoundingClientRect()
-  const localX = event.clientX - rect.left
-  const localY = event.clientY - rect.top
+  const localX = Math.min(Math.max(0, event.clientX - rect.left), rect.width)
+  const localY = Math.min(Math.max(0, event.clientY - rect.top), rect.height)
   const prevZoom = viewport.value.zoom
-  const nextZoom = Math.min(2.5, Math.max(0.3, prevZoom * (event.deltaY < 0 ? 1.1 : 0.9)))
+  const zoomFactor = Math.exp(-event.deltaY * 0.0022)
+  const nextZoom = Math.min(2.5, Math.max(0.3, Number((prevZoom * zoomFactor).toFixed(4))))
   const worldX = (localX - viewport.value.x) / prevZoom
   const worldY = (localY - viewport.value.y) / prevZoom
 
@@ -624,8 +853,45 @@ function onWheel(event: WheelEvent) {
   viewport.value.y = localY - worldY * nextZoom
 }
 
+function onGestureStart(event: Event) {
+  if (!isMacOS.value) return
+  const host = canvasHostRef.value
+  if (!host) return
+  const gestureEvent = event as Event & { clientX?: number; clientY?: number }
+  event.preventDefault()
+  const rect = host.getBoundingClientRect()
+  const localX = Math.min(Math.max(0, (gestureEvent.clientX ?? rect.width / 2) - rect.left), rect.width)
+  const localY = Math.min(Math.max(0, (gestureEvent.clientY ?? rect.height / 2) - rect.top), rect.height)
+  gestureState.value = {
+    active: true,
+    startZoom: viewport.value.zoom,
+    startViewportX: viewport.value.x,
+    startViewportY: viewport.value.y,
+    anchorLocalX: localX,
+    anchorLocalY: localY,
+  }
+}
+
+function onGestureChange(event: Event) {
+  if (!isMacOS.value || !gestureState.value.active) return
+  const gestureEvent = event as Event & { scale?: number }
+  event.preventDefault()
+  const scale = Number(gestureEvent.scale || 1)
+  const amplifiedScale = 1 + (scale - 1) * 1.6
+  const nextZoom = Math.min(2.5, Math.max(0.3, Number((gestureState.value.startZoom * amplifiedScale).toFixed(4))))
+  const worldX = (gestureState.value.anchorLocalX - gestureState.value.startViewportX) / gestureState.value.startZoom
+  const worldY = (gestureState.value.anchorLocalY - gestureState.value.startViewportY) / gestureState.value.startZoom
+  viewport.value.zoom = nextZoom
+  viewport.value.x = gestureState.value.anchorLocalX - worldX * nextZoom
+  viewport.value.y = gestureState.value.anchorLocalY - worldY * nextZoom
+}
+
+function onGestureEnd() {
+  gestureState.value.active = false
+}
+
 function adjustZoom(delta: number) {
-  viewport.value.zoom = Math.min(2.5, Math.max(0.3, viewport.value.zoom + delta))
+  viewport.value.zoom = Math.min(2.5, Math.max(0.3, Number((viewport.value.zoom + delta).toFixed(3))))
 }
 
 function resetView() {
@@ -667,16 +933,16 @@ function getNodeStyle(node: ProjectCanvasNode) {
 
 function getNodeAccentClass(node: ProjectCanvasNode) {
   if (isDarkMode.value) {
-    if (node.type === 'note') return 'border-amber-400/55 bg-amber-950/50 text-amber-50'
-    if (node.type === 'text') return 'border-sky-400/45 bg-sky-950/40 text-sky-50'
-    if (node.type === 'ai_call') return 'border-violet-400/45 bg-violet-950/35 text-violet-50'
-    return 'border-slate-300/15 bg-[#111827]/88 text-slate-100'
+    if (node.type === 'note') return 'border-amber-700 bg-amber-900 text-amber-50'
+    if (node.type === 'text') return 'border-sky-700 bg-sky-900 text-sky-50'
+    if (node.type === 'ai_call') return 'border-violet-700 bg-violet-900 text-violet-50'
+    return 'border-slate-700 bg-slate-900 text-slate-100'
   }
 
-  if (node.type === 'note') return 'border-amber-300/70 bg-amber-50/95 text-amber-950'
-  if (node.type === 'text') return 'border-sky-200/70 bg-sky-50/95 text-sky-950'
-  if (node.type === 'ai_call') return 'border-violet-200/80 bg-violet-50/95 text-violet-950'
-  return 'border-slate-200/80 bg-white/96 text-slate-900'
+  if (node.type === 'note') return 'border-amber-300 bg-amber-50 text-amber-950'
+  if (node.type === 'text') return 'border-sky-200 bg-sky-50 text-sky-950'
+  if (node.type === 'ai_call') return 'border-violet-200 bg-violet-50 text-violet-950'
+  return 'border-slate-200 bg-white text-slate-900'
 }
 
 function getResizeHandleClass(handle: ResizeHandle) {
@@ -716,11 +982,20 @@ function goToProjects() {
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  if (event.code === 'Space' && !isSpacePressed.value) {
+    isSpacePressed.value = true
+    event.preventDefault()
+  }
+
   const target = event.target as HTMLElement | null
   if (target?.closest('input, textarea, select, [contenteditable="true"]')) return
-  if ((event.key === 'Backspace' || event.key === 'Delete') && selectedNode.value) {
+  if ((event.key === 'Backspace' || event.key === 'Delete') && (selectedNodeIds.value.length || selectedNode.value)) {
     event.preventDefault()
-    removeSelectedNode()
+    if (selectedNodeIds.value.length > 1) {
+      removeSelectedNodes()
+    } else {
+      removeSelectedNode()
+    }
   }
   if (event.key === 'Escape') {
     editingTextNodeId.value = ''
@@ -729,6 +1004,25 @@ function handleKeydown(event: KeyboardEvent) {
     aiConfigNodeId.value = ''
     mediaMenuNodeId.value = ''
   }
+}
+
+function handleKeyup(event: KeyboardEvent) {
+  if (event.code === 'Space') {
+    isSpacePressed.value = false
+  }
+}
+
+function detectPlatform() {
+  const platform = `${navigator.platform || ''} ${navigator.userAgent || ''}`.toLowerCase()
+  if (platform.includes('mac')) {
+    platformType.value = 'mac'
+    return
+  }
+  if (platform.includes('win')) {
+    platformType.value = 'windows'
+    return
+  }
+  platformType.value = 'other'
 }
 
 function getCanvasPositionFromClient(clientX: number, clientY: number): { x: number; y: number } {
@@ -769,7 +1063,32 @@ function applyAssetToNode(nodeId: string, asset: ProjectAssetRef) {
       ...asset,
       provider: 'aliyun-oss',
     }
+    normalizeMediaNodeSize(node, 'keep_width')
   }
+}
+
+function handleImageLoaded(node: ProjectCanvasNode, event: Event) {
+  if (!isImageNode(node)) return
+  const element = event.target as HTMLImageElement | null
+  if (!element) return
+  const width = element.naturalWidth || 0
+  const height = element.naturalHeight || 0
+  if (!width || !height) return
+  node.data.asset.width = width
+  node.data.asset.height = height
+  normalizeMediaNodeSize(node, 'keep_width')
+}
+
+function handleVideoLoaded(node: ProjectCanvasNode, event: Event) {
+  if (!isVideoNode(node)) return
+  const element = event.target as HTMLVideoElement | null
+  if (!element) return
+  const width = element.videoWidth || 0
+  const height = element.videoHeight || 0
+  if (!width || !height) return
+  node.data.asset.width = width
+  node.data.asset.height = height
+  normalizeMediaNodeSize(node, 'keep_width')
 }
 
 function pickAssetFromLibrary(item: ProjectAssetLibraryItem) {
@@ -777,8 +1096,40 @@ function pickAssetFromLibrary(item: ProjectAssetLibraryItem) {
   resourceDialogOpen.value = false
 }
 
+function buildAssetPreviewKeys(asset: ProjectAssetRef): string[] {
+  const keys = [asset.assetId, asset.objectKey, asset.url].filter((item): item is string => Boolean(item))
+  return Array.from(new Set(keys))
+}
+
+function registerAssetPreview(asset: ProjectAssetRef, previewUrl: string) {
+  if (!previewUrl) return
+  const keys = buildAssetPreviewKeys(asset)
+  for (const key of keys) {
+    mediaPreviewIndex.value[key] = previewUrl
+  }
+}
+
 function extractAssetUrl(asset: ProjectAssetRef): string {
-  return asset.url || ''
+  const keys = buildAssetPreviewKeys(asset)
+  for (const key of keys) {
+    const localPreview = mediaPreviewIndex.value[key]
+    if (localPreview) {
+      return localPreview
+    }
+  }
+  const raw = asset.url || ''
+  if (!raw) return ''
+  if (/^oss:\/\//i.test(raw)) return ''
+  return raw
+}
+
+function getNodeTypeLabel(node: ProjectCanvasNode): string {
+  if (isScriptNode(node)) return '脚本'
+  if (isTextNode(node)) return '文本'
+  if (isImageNode(node)) return '图片'
+  if (isVideoNode(node)) return '视频'
+  if (isAiNode(node)) return 'AI'
+  return '便签'
 }
 
 function readImageMeta(file: File): Promise<{ width: number; height: number }> {
@@ -837,6 +1188,7 @@ async function uploadMediaToNode(nodeId: string, type: 'image' | 'video', file: 
 
   try {
     let asset: ProjectAssetRef
+    const localPreviewUrl = URL.createObjectURL(file)
 
     if (type === 'image') {
       const uploaded = await uploadImageFile(file, DEFAULT_MODEL_ID, apiKey)
@@ -880,8 +1232,41 @@ async function uploadMediaToNode(nodeId: string, type: 'image' | 'video', file: 
       }
     }
 
+    registerAssetPreview(asset, localPreviewUrl)
     applyAssetToNode(nodeId, asset)
-    pushAssetToLibrary(type, asset, file.name)
+
+    const { bucket, objectKey } = parseOssLocation(asset.url || '')
+    const savedAsset = await projectStore.upsertProjectAsset({
+      projectId: projectId.value,
+      assetType: type,
+      sourceType: 'upload',
+      provider: 'aliyun-oss',
+      bucket,
+      objectKey,
+      ossUrl: asset.url || '',
+      publicUrl: asset.url || '',
+      fileName: file.name,
+      mimeType: file.type,
+      sizeBytes: file.size,
+      width: asset.width,
+      height: asset.height,
+      durationMs: asset.durationMs,
+      metadata: {
+        nodeId,
+      },
+    })
+
+    const libraryItem = mapAssetRecordToLibraryItem(savedAsset)
+    if (libraryItem) {
+      const finalAsset = {
+        ...asset,
+        assetId: savedAsset.id,
+      }
+      registerAssetPreview(finalAsset, localPreviewUrl)
+      applyAssetToNode(nodeId, finalAsset)
+      const others = assetLibrary.value.filter(item => item.id !== libraryItem.id)
+      assetLibrary.value = [libraryItem, ...others]
+    }
 
     toast({
       title: '上传成功',
@@ -947,7 +1332,7 @@ async function onCanvasDrop(event: DragEvent) {
   addNode(nodeType, {
     x: position.x - 160,
     y: position.y - 110,
-  }, false)
+  })
 
   const node = nodes.value[nodes.value.length - 1]
   if (!node) return
@@ -1068,19 +1453,31 @@ function formatResultContent(content: unknown): string {
 }
 
 onMounted(async () => {
+  detectPlatform()
   loadTheme()
-  loadAssetLibrary()
   modelRegistry.loadRegistry()
-  await loadProject()
+  await Promise.all([
+    loadProject(),
+    loadAssetLibrary(),
+  ])
   window.addEventListener('pointermove', onPointerMove)
   window.addEventListener('pointerup', onPointerUp)
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('keyup', handleKeyup)
 })
 
 onUnmounted(() => {
+  const revoked = new Set<string>()
+  for (const value of Object.values(mediaPreviewIndex.value)) {
+    if (value.startsWith('blob:') && !revoked.has(value)) {
+      revoked.add(value)
+      URL.revokeObjectURL(value)
+    }
+  }
   window.removeEventListener('pointermove', onPointerMove)
   window.removeEventListener('pointerup', onPointerUp)
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('keyup', handleKeyup)
 })
 </script>
 
@@ -1106,6 +1503,10 @@ onUnmounted(() => {
       class="absolute inset-0 overflow-hidden"
       @pointerdown="onBackgroundPointerDown"
       @wheel="onWheel"
+      @gesturestart="onGestureStart"
+      @gesturechange="onGestureChange"
+      @gestureend="onGestureEnd"
+      @contextmenu.prevent
       @dragover="onCanvasDragOver"
       @dragleave="onCanvasDragLeave"
       @drop="onCanvasDrop"
@@ -1117,7 +1518,7 @@ onUnmounted(() => {
       <template v-else>
         <div
           class="pointer-events-none absolute inset-0"
-          :class="isDarkMode ? 'opacity-40' : 'opacity-55'"
+          :class="isDarkMode ? 'opacity-18' : 'opacity-34'"
           :style="{
             backgroundImage: isDarkMode
               ? 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)'
@@ -1132,22 +1533,34 @@ onUnmounted(() => {
           class="pointer-events-none absolute inset-0 z-10 border-2 border-dashed"
           :class="isDarkMode ? 'border-sky-300/60 bg-sky-400/10' : 'border-sky-500/45 bg-sky-100/50'"
         />
+        <div
+          v-if="marqueeState.active"
+          class="pointer-events-none absolute z-10 border border-sky-400/80 bg-sky-300/15"
+          :style="marqueeStyle"
+        />
 
-        <div class="absolute left-0 top-0 h-full w-full will-change-transform" :style="canvasStyle">
+        <div class="absolute left-0 top-0 h-full w-full" :style="canvasStyle">
           <article
             v-for="node in nodes"
             :key="node.id"
             data-role="project-node"
-            class="absolute cursor-move overflow-hidden rounded-2xl border shadow-[0_20px_40px_rgba(0,0,0,0.12)] backdrop-blur"
-            :class="[
-              getNodeAccentClass(node),
-              selectedNodeId === node.id ? (isDarkMode ? 'ring-2 ring-sky-300/50' : 'ring-2 ring-sky-500/60') : '',
-            ]"
+            class="absolute cursor-move overflow-hidden rounded-2xl border shadow-[0_6px_16px_rgba(0,0,0,0.08)]"
+            :class="getNodeAccentClass(node)"
             :style="getNodeStyle(node)"
             @pointerdown="onNodePointerDown($event, node)"
           >
+            <div class="pointer-events-none absolute left-2 right-2 top-2 z-10 flex items-center justify-between text-[11px]">
+              <span
+                class="rounded-md px-1.5 py-0.5 font-medium"
+                :class="isDarkMode ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'"
+              >
+                {{ getNodeTypeLabel(node) }}
+              </span>
+              <span />
+            </div>
+
             <template v-if="isScriptNode(node)">
-              <div class="h-full p-4">
+              <div class="h-full p-4 pt-8">
                 <div class="flex items-center justify-between gap-3">
                   <div class="text-sm font-semibold">脚本 #{{ String(node.data.sequenceNumber || '-') }}</div>
                   <Badge variant="secondary" class="text-[10px]">
@@ -1167,7 +1580,8 @@ onUnmounted(() => {
             </template>
 
             <template v-else-if="isTextNode(node)">
-              <div class="h-full p-4">
+              <div class="h-full p-4 pt-8">
+                <div class="mb-2 text-xs font-medium opacity-70">{{ node.data.title || '文本节点' }}</div>
                 <textarea
                   v-if="editingTextNodeId === node.id"
                   v-model="node.data.content"
@@ -1192,6 +1606,9 @@ onUnmounted(() => {
                   :src="extractAssetUrl(node.data.asset)"
                   :alt="node.data.title || '图片节点'"
                   class="h-full w-full object-contain"
+                  draggable="false"
+                  @dragstart.prevent
+                  @load="handleImageLoaded(node, $event)"
                 />
                 <div v-else class="flex h-full w-full items-center justify-center text-sm opacity-65">
                   点击后选择上传图片
@@ -1200,8 +1617,8 @@ onUnmounted(() => {
                 <div
                   v-if="mediaMenuNodeId === node.id"
                   data-no-drag="true"
-                  class="absolute right-2 top-2 flex gap-2 rounded-lg border px-2 py-1 text-xs"
-                  :class="isDarkMode ? 'border-white/15 bg-black/45' : 'border-slate-300 bg-white/90'"
+                  class="absolute right-2 top-8 flex gap-2 rounded-lg border px-2 py-1 text-xs"
+                  :class="isDarkMode ? 'border-slate-600 bg-slate-900' : 'border-slate-300 bg-white'"
                 >
                   <Button
                     data-no-drag="true"
@@ -1234,6 +1651,7 @@ onUnmounted(() => {
                   class="h-full w-full object-contain"
                   controls
                   preload="metadata"
+                  @loadedmetadata="handleVideoLoaded(node, $event)"
                 />
                 <div v-else class="flex h-full w-full items-center justify-center text-sm opacity-65">
                   点击后选择上传视频
@@ -1242,8 +1660,8 @@ onUnmounted(() => {
                 <div
                   v-if="mediaMenuNodeId === node.id"
                   data-no-drag="true"
-                  class="absolute right-2 top-2 flex gap-2 rounded-lg border px-2 py-1 text-xs"
-                  :class="isDarkMode ? 'border-white/15 bg-black/45' : 'border-slate-300 bg-white/90'"
+                  class="absolute right-2 top-8 flex gap-2 rounded-lg border px-2 py-1 text-xs"
+                  :class="isDarkMode ? 'border-slate-600 bg-slate-900' : 'border-slate-300 bg-white'"
                 >
                   <Button
                     data-no-drag="true"
@@ -1269,7 +1687,7 @@ onUnmounted(() => {
             </template>
 
             <template v-else-if="isAiNode(node)">
-              <div class="flex h-full flex-col p-3">
+              <div class="flex h-full flex-col p-3 pt-8">
                 <div class="mb-2 flex items-center justify-between gap-2">
                   <div class="text-sm font-semibold">{{ node.data.title || 'AI 节点' }}</div>
                   <div class="flex gap-1" data-no-drag="true">
@@ -1364,7 +1782,7 @@ onUnmounted(() => {
             </template>
 
             <template v-else-if="isNoteNode(node)">
-              <div class="h-full p-4">
+              <div class="h-full p-4 pt-8">
                 <textarea
                   v-if="editingNoteNodeId === node.id"
                   v-model="node.data.content"
@@ -1399,8 +1817,8 @@ onUnmounted(() => {
 
         <div class="pointer-events-none absolute left-6 right-6 top-5 z-20 flex items-start justify-between">
           <div
-            class="pointer-events-auto rounded-2xl border px-4 py-3 shadow-[0_16px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl"
-            :class="isDarkMode ? 'border-white/10 bg-[#12151d]/88 text-white' : 'border-slate-200 bg-white/90 text-slate-900'"
+            class="pointer-events-auto rounded-2xl border px-4 py-3 shadow-[0_4px_14px_rgba(0,0,0,0.12)] backdrop-blur-md"
+            :class="isDarkMode ? 'border-white/10 bg-[#12151d]/50 text-white' : 'border-slate-200 bg-white/82 text-slate-900'"
           >
             <div class="flex items-center gap-3">
               <Button variant="secondary" size="sm" :class="isDarkMode ? 'border-0 bg-white/8 text-white hover:bg-white/12' : ''" @click="goToProjects">
@@ -1415,10 +1833,9 @@ onUnmounted(() => {
           </div>
 
           <div
-            class="pointer-events-auto flex items-center gap-2 rounded-2xl border px-3 py-2 shadow-[0_16px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl"
-            :class="isDarkMode ? 'border-white/10 bg-[#12151d]/88 text-white' : 'border-slate-200 bg-white/90 text-slate-900'"
+            class="pointer-events-auto flex items-center gap-2 rounded-2xl border px-3 py-2 shadow-[0_4px_14px_rgba(0,0,0,0.12)] backdrop-blur-md"
+            :class="isDarkMode ? 'border-white/10 bg-[#12151d]/50 text-white' : 'border-slate-200 bg-white/82 text-slate-900'"
           >
-            <Badge variant="secondary" :class="isDarkMode ? 'border-0 bg-white/8 text-white' : ''">{{ zoomPercent }}</Badge>
             <Button variant="ghost" size="sm" :class="isDarkMode ? 'text-white hover:bg-white/10 hover:text-white' : ''" @click="fitView">
               <Maximize class="mr-1.5 h-4 w-4" />
               适配内容
@@ -1440,8 +1857,8 @@ onUnmounted(() => {
 
         <aside class="pointer-events-none absolute left-5 top-1/2 z-20 -translate-y-1/2">
           <div
-            class="pointer-events-auto flex flex-col gap-2 rounded-2xl border p-2 shadow-[0_16px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl"
-            :class="isDarkMode ? 'border-white/10 bg-[#12151d]/88 text-white' : 'border-slate-200 bg-white/90 text-slate-900'"
+            class="pointer-events-auto flex flex-col gap-2 rounded-2xl border p-2 shadow-[0_4px_14px_rgba(0,0,0,0.12)] backdrop-blur-md"
+            :class="isDarkMode ? 'border-white/10 bg-[#12151d]/50 text-white' : 'border-slate-200 bg-white/82 text-slate-900'"
           >
             <Button
               v-for="action in leftCreateActions"
@@ -1458,81 +1875,61 @@ onUnmounted(() => {
           </div>
         </aside>
 
-        <div class="pointer-events-none absolute bottom-5 left-1/2 z-20 -translate-x-1/2">
+        <div class="pointer-events-none absolute bottom-5 left-5 z-20">
           <div
-            class="pointer-events-auto flex items-center gap-2 rounded-2xl border px-3 py-2 shadow-[0_16px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl"
-            :class="isDarkMode ? 'border-white/10 bg-[#12151d]/88 text-white' : 'border-slate-200 bg-white/90 text-slate-900'"
+            class="pointer-events-auto flex items-center gap-3 rounded-2xl border px-3 py-2 shadow-[0_4px_14px_rgba(0,0,0,0.12)] backdrop-blur-md"
+            :class="isDarkMode ? 'border-white/10 bg-[#12151d]/50 text-white' : 'border-slate-200 bg-white/82 text-slate-900'"
           >
-            <Button variant="ghost" size="icon" :class="isDarkMode ? 'text-white hover:bg-white/10 hover:text-white' : ''" @click="adjustZoom(-0.1)">
-              <ZoomOut class="h-4 w-4" />
-            </Button>
-            <Badge variant="secondary" class="min-w-14 justify-center" :class="isDarkMode ? 'border-0 bg-white/8 text-white' : ''">{{ zoomPercent }}</Badge>
-            <Button variant="ghost" size="icon" :class="isDarkMode ? 'text-white hover:bg-white/10 hover:text-white' : ''" @click="adjustZoom(0.1)">
-              <ZoomIn class="h-4 w-4" />
-            </Button>
+            <div class="flex items-center gap-2">
+              <Button variant="ghost" size="icon" :class="isDarkMode ? 'text-white hover:bg-white/10 hover:text-white' : ''" @click="adjustZoom(-0.1)">
+                <ZoomOut class="h-4 w-4" />
+              </Button>
+              <Badge variant="secondary" class="min-w-14 justify-center" :class="isDarkMode ? 'border-0 bg-white/8 text-white' : ''">{{ zoomPercent }}</Badge>
+              <Button variant="ghost" size="icon" :class="isDarkMode ? 'text-white hover:bg-white/10 hover:text-white' : ''" @click="adjustZoom(0.1)">
+                <ZoomIn class="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div class="h-8 w-px" :class="isDarkMode ? 'bg-white/15' : 'bg-slate-300'" />
+
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] leading-4">
+              <div class="flex items-center gap-1.5">
+                <span class="opacity-65">缩放</span>
+                <span class="rounded-md border px-1.5 py-0.5" :class="isDarkMode ? 'border-white/25 bg-white/5' : 'border-slate-300 bg-white'">
+                  {{ isMacOS ? 'Cmd' : 'Ctrl' }}
+                </span>
+                <span class="opacity-60">+</span>
+                <span class="rounded-md border px-1.5 py-0.5" :class="isDarkMode ? 'border-white/25 bg-white/5' : 'border-slate-300 bg-white'">滚轮</span>
+                <span v-if="isMacOS" class="rounded-md border px-1.5 py-0.5" :class="isDarkMode ? 'border-white/25 bg-white/5' : 'border-slate-300 bg-white'">
+                  捏合
+                </span>
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                <span class="opacity-65">移动</span>
+                <span class="rounded-md border px-1.5 py-0.5" :class="isDarkMode ? 'border-white/25 bg-white/5' : 'border-slate-300 bg-white'">Space</span>
+                <span class="opacity-60">+</span>
+                <span class="rounded-md border px-1.5 py-0.5" :class="isDarkMode ? 'border-white/25 bg-white/5' : 'border-slate-300 bg-white'">左键</span>
+                <span class="opacity-60">/</span>
+                <span class="rounded-md border px-1.5 py-0.5" :class="isDarkMode ? 'border-white/25 bg-white/5' : 'border-slate-300 bg-white'">
+                  {{ isMacOS ? '双指滚动' : isWindowsOS ? '中键拖拽' : '滚轮拖拽' }}
+                </span>
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                <span class="opacity-65">其他</span>
+                <span class="rounded-md border px-1.5 py-0.5" :class="isDarkMode ? 'border-white/25 bg-white/5' : 'border-slate-300 bg-white'">Delete</span>
+                <span class="opacity-60">删除</span>
+                <span class="rounded-md border px-1.5 py-0.5" :class="isDarkMode ? 'border-white/25 bg-white/5' : 'border-slate-300 bg-white'">
+                  {{ isMacOS ? 'Cmd+Z' : 'Ctrl+Z' }}
+                </span>
+                <span class="rounded-md border px-1.5 py-0.5" :class="isDarkMode ? 'border-white/25 bg-white/5' : 'border-slate-300 bg-white'">
+                  {{ isMacOS ? 'Cmd+Shift+Z' : 'Ctrl+Y' }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-
-        <aside
-          v-if="selectedNode"
-          class="absolute bottom-5 right-5 z-20 w-[340px] rounded-2xl border p-4 shadow-[0_16px_50px_rgba(0,0,0,0.3)] backdrop-blur-xl"
-          :class="isDarkMode ? 'border-white/10 bg-[#12151d]/90 text-white' : 'border-slate-200 bg-white/95 text-slate-900'"
-        >
-          <div class="mb-3 flex items-center justify-between">
-            <div>
-              <div class="text-sm font-medium">节点属性</div>
-              <div class="mt-1 text-[11px] opacity-45">{{ selectedNode.type }} · {{ selectedNode.id }}</div>
-            </div>
-            <Button variant="ghost" size="sm" :class="isDarkMode ? 'text-white hover:bg-white/10 hover:text-white' : ''" @click="removeSelectedNode">
-              <Trash2 class="mr-1.5 h-4 w-4" />
-              删除
-            </Button>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <label class="space-y-1">
-              <span class="opacity-55">X</span>
-              <input v-model.number="selectedNode.x" class="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-2 outline-none" />
-            </label>
-            <label class="space-y-1">
-              <span class="opacity-55">Y</span>
-              <input v-model.number="selectedNode.y" class="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-2 outline-none" />
-            </label>
-            <label class="space-y-1">
-              <span class="opacity-55">宽</span>
-              <input v-model.number="selectedNode.width" class="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-2 outline-none" />
-            </label>
-            <label class="space-y-1">
-              <span class="opacity-55">高</span>
-              <input v-model.number="selectedNode.height" class="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-2 outline-none" />
-            </label>
-          </div>
-
-          <template v-if="isScriptNode(selectedNode)">
-            <label class="mt-3 block space-y-1 text-xs">
-              <span class="opacity-55">画面内容</span>
-              <textarea v-model="selectedNode.data.visualContent" class="h-24 w-full rounded-lg border border-white/10 bg-white/5 p-2 outline-none" />
-            </label>
-            <label class="mt-3 block space-y-1 text-xs">
-              <span class="opacity-55">口播</span>
-              <textarea v-model="selectedNode.data.voiceover" class="h-20 w-full rounded-lg border border-white/10 bg-white/5 p-2 outline-none" />
-            </label>
-          </template>
-
-          <template v-else-if="isTextNode(selectedNode)">
-            <label class="mt-3 block space-y-1 text-xs">
-              <span class="opacity-55">内容</span>
-              <textarea v-model="selectedNode.data.content" class="h-24 w-full rounded-lg border border-white/10 bg-white/5 p-2 outline-none" />
-            </label>
-          </template>
-
-          <template v-else-if="isNoteNode(selectedNode)">
-            <label class="mt-3 block space-y-1 text-xs">
-              <span class="opacity-55">便签文本</span>
-              <textarea v-model="selectedNode.data.content" class="h-24 w-full rounded-lg border border-white/10 bg-white/5 p-2 outline-none" />
-            </label>
-          </template>
-        </aside>
 
         <Dialog v-model:open="resourceDialogOpen">
           <DialogContent class="max-w-3xl">
@@ -1555,6 +1952,8 @@ onUnmounted(() => {
                     :src="extractAssetUrl(item.asset)"
                     :alt="item.title"
                     class="h-28 w-full rounded object-cover"
+                    draggable="false"
+                    @dragstart.prevent
                   />
                   <video
                     v-else
@@ -1576,7 +1975,7 @@ onUnmounted(() => {
     <div
       v-if="uploading"
       class="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-full border px-4 py-2 text-xs"
-      :class="isDarkMode ? 'border-white/15 bg-black/65 text-white' : 'border-slate-300 bg-white/90 text-slate-900'"
+      :class="isDarkMode ? 'border-white/15 bg-black/32 text-white' : 'border-slate-300 bg-white/82 text-slate-900'"
     >
       正在上传媒体...
     </div>

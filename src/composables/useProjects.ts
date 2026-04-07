@@ -57,6 +57,50 @@ export interface ProjectShareRecord {
   updated_at: string
 }
 
+export interface ProjectAssetRecord {
+  id: string
+  user_id: string
+  project_id: string | null
+  snapshot_id: string | null
+  asset_type: 'image' | 'video' | 'audio' | 'thumbnail' | 'attachment'
+  source_type: 'upload' | 'ai_generated' | 'imported'
+  provider: string
+  bucket: string
+  region: string
+  object_key: string
+  oss_url: string
+  public_url: string
+  file_name: string
+  mime_type: string
+  size_bytes: number
+  width: number
+  height: number
+  duration_ms: number
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+interface UpsertProjectAssetPayload {
+  projectId?: string
+  snapshotId?: string | null
+  assetType: 'image' | 'video' | 'audio' | 'thumbnail' | 'attachment'
+  sourceType?: 'upload' | 'ai_generated' | 'imported'
+  provider?: string
+  bucket: string
+  region?: string
+  objectKey: string
+  ossUrl?: string
+  publicUrl?: string
+  fileName?: string
+  mimeType?: string
+  sizeBytes?: number
+  width?: number
+  height?: number
+  durationMs?: number
+  metadata?: Record<string, unknown>
+}
+
 interface CreateProjectFromScriptParams {
   title?: string
   sourceType: Exclude<ProjectSourceType, 'manual'>
@@ -392,6 +436,74 @@ export function useProjects() {
     return data as ProjectShareRecord
   }
 
+  async function listProjectAssets(options?: {
+    projectId?: string
+    assetType?: 'image' | 'video' | 'audio' | 'thumbnail' | 'attachment'
+    limit?: number
+  }): Promise<ProjectAssetRecord[]> {
+    if (!auth.user.value) {
+      throw new Error('请先登录')
+    }
+
+    let query = supabase
+      .from('project_assets')
+      .select('*')
+      .eq('user_id', auth.user.value.id)
+      .order('created_at', { ascending: false })
+
+    if (options?.projectId) {
+      query = query.eq('project_id', options.projectId)
+    }
+    if (options?.assetType) {
+      query = query.eq('asset_type', options.assetType)
+    }
+    if (options?.limit) {
+      query = query.limit(options.limit)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    return (data as ProjectAssetRecord[]) || []
+  }
+
+  async function upsertProjectAsset(payload: UpsertProjectAssetPayload): Promise<ProjectAssetRecord> {
+    if (!auth.user.value) {
+      throw new Error('请先登录')
+    }
+
+    const insertPayload = {
+      user_id: auth.user.value.id,
+      project_id: payload.projectId || null,
+      snapshot_id: payload.snapshotId || null,
+      asset_type: payload.assetType,
+      source_type: payload.sourceType || 'upload',
+      provider: payload.provider || 'aliyun-oss',
+      bucket: payload.bucket,
+      region: payload.region || '',
+      object_key: payload.objectKey,
+      oss_url: payload.ossUrl || '',
+      public_url: payload.publicUrl || payload.ossUrl || '',
+      file_name: payload.fileName || '',
+      mime_type: payload.mimeType || '',
+      size_bytes: payload.sizeBytes || 0,
+      width: payload.width || 0,
+      height: payload.height || 0,
+      duration_ms: payload.durationMs || 0,
+      metadata: payload.metadata || {},
+    }
+
+    const { data, error } = await supabase
+      .from('project_assets')
+      .upsert(insertPayload, {
+        onConflict: 'provider,bucket,object_key',
+      })
+      .select('*')
+      .single()
+
+    if (error) throw error
+    return data as ProjectAssetRecord
+  }
+
   return {
     projects,
     loading,
@@ -404,5 +516,7 @@ export function useProjects() {
     saveProjectSnapshot,
     getProjectShare,
     publishProjectShare,
+    listProjectAssets,
+    upsertProjectAsset,
   }
 }
