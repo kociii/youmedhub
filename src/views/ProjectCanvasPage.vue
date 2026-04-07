@@ -420,26 +420,35 @@ function findNonOverlappingPosition(
   start: { x: number; y: number },
   size: { width: number; height: number },
 ): { x: number; y: number } {
-  const step = 36
-  const maxAttempts = 120
+  const step = 28
+  const maxRadius = 36
+  const isAvailable = (x: number, y: number) => {
+    const candidate = { x, y, width: size.width, height: size.height }
+    return !nodes.value.some(node => isNodeOverlap(candidate, node))
+  }
 
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const ring = Math.floor(Math.sqrt(attempt))
-    const offsetX = ((attempt % (ring + 1)) - ring / 2) * step
-    const offsetY = (ring - Math.floor(attempt / (ring + 1))) * step
-    const candidate = {
-      x: Math.round(start.x + offsetX),
-      y: Math.round(start.y + offsetY),
-      width: size.width,
-      height: size.height,
-    }
-    const hasOverlap = nodes.value.some(node => isNodeOverlap(candidate, node))
-    if (!hasOverlap) {
-      return { x: candidate.x, y: candidate.y }
+  if (isAvailable(start.x, start.y)) {
+    return { x: Math.round(start.x), y: Math.round(start.y) }
+  }
+
+  for (let radius = 1; radius <= maxRadius; radius += 1) {
+    for (let offsetY = -radius; offsetY <= radius; offsetY += 1) {
+      for (let offsetX = -radius; offsetX <= radius; offsetX += 1) {
+        const isRingEdge = Math.abs(offsetX) === radius || Math.abs(offsetY) === radius
+        if (!isRingEdge) continue
+        const x = Math.round(start.x + offsetX * step)
+        const y = Math.round(start.y + offsetY * step)
+        if (isAvailable(x, y)) {
+          return { x, y }
+        }
+      }
     }
   }
 
-  return start
+  return {
+    x: Math.round(start.x + (maxRadius + 1) * step),
+    y: Math.round(start.y + (maxRadius + 1) * step),
+  }
 }
 
 function addNode(type: ProjectNodeType, position?: { x: number; y: number }, avoidOverlap = true) {
