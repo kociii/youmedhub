@@ -31,6 +31,16 @@ npm run build    # TypeScript 类型检查 + 生产构建
 npm run preview  # 预览生产构建
 ```
 
+## PRD 版本文档
+
+需求与版本文档按版本目录组织在 `docs/prd/`，索引见 `docs/prd/README.md`（倒序，最新在上）。文档边界：prd.md 只写需求与验收（业务语言），技术方案在 dev.md，数据表在 database.md + sql/，界面设计在 design.md。
+
+| 版本 | 主题 | 状态 |
+|------|------|------|
+| [v0.3.0](./docs/prd/v0.3.0/prd.md) | 媒体资料库与多语言基础版 | 规划中，PRD 待评审（R4 已上线、R5 部分上线） |
+| [v0.2.5](./docs/prd/v0.2.5/prd.md) | 能力增强与国际化基础版 | ✅ 已完成（事后归档） |
+| [v0.2.4](./docs/prd/v0.2.4/prd.md) | 免费试用与平台 Key 托管 | 规划中，PRD 待评审 |
+
 ## 项目架构
 
 ### 路径别名
@@ -163,7 +173,7 @@ src/
 使用阿里百炼（DashScope）API：
 
 - `src/api/providers/aliyun.ts` - 阿里百炼 API 封装（SSE 流式）
-- `src/config/models.ts` - 模型配置（qwen3.5-flash / qwen3.5-plus）
+- `src/config/models.ts` - 模型配置（qwen3.8/qwen3.7 系列，按页面区分可选列表）
 
 **思考模式参数配置**（参考[阿里云官方文档](https://help.aliyun.com/zh/model-studio/developer-reference/thinking)）：
 
@@ -202,7 +212,7 @@ const body = {
 - `src/composables/useLocale.ts` - `locale` ref（'zh' | 'en'）+ `t(key, params)` + `setLocale`，localStorage 键 `app_locale`
 - `src/locales/zh.ts` - 中文字典（类型基准）；`en.ts` - 英文字典（`typeof zh` 约束键完全一致，编译期校验）
 - 字典键按分组命名：`common.*` / `menu.*` / `analyze.*` / `create.*` / `panel.*` / `field.*` / `api.*` 等
-- 右上角语言切换：`AppLayout` 顶栏的 `LanguageSwitcher` 组件
+- 左侧菜单栏语言切换：`AppMenu` 底部的 `LanguageSwitcher` 组件（v0.2.5 起从右上角移入）
 - **AI 输出语言**：`analyzeVideo`/`generateScript` 的 `locale` 参数（`OutputLocale` 类型）控制结果语言；`parseMarkdownTable` 同时兼容中英文表头定位
 - 新增文案时：先加 `zh.ts` 键，再加 `en.ts` 同名键（漏键会编译报错）
 - CreateModePanel 的 `videoTypes` 是 computed，模板由字段 label 生成，语言切换自动跟随
@@ -258,6 +268,29 @@ const body = {
 - **SSE 流解析**：已实现 buffer 机制，修改时需保留
 - **全局状态单例**：新增状态需定义在模块顶层
 - **VideoSegmentPlayer**：大量行数（50+）时考虑虚拟滚动
+
+## v0.2.5 能力增强与国际化基础版（已上线）
+
+> PRD 见 `docs/prd/v0.2.5/prd.md`（**事后归档**——功能已随 2026-09-17 ~ 09-18 的提交上线，文档用于补齐版本记录）。
+
+七项已上线能力：**ASR 前置转写**（非 omni 模型分析视频前先转写音轨，台词列不再靠猜）、**模型升级与按页面区分**（qwen3.8 系列，拆解页/生成页各自的可选列表与默认值）、**中英双语界面**、**结果语言跟随界面语言**、**Google AdSense 广告**、**SEO 优化**、**AI 使用统计**。
+
+**已知遗留**（详见 PRD 文末）：
+- 结果语言与界面语言未解耦，中文界面无法产出英文结果 → 交由 v0.3.0 R5 解决
+- 转写时间戳粒度为 30 秒（模型不输出原生时间戳，以分块偏移代替）
+- 语言偏好仅存本地，不跨设备同步
+
+## v0.2.4 免费试用与平台 Key 托管（规划中，PRD 待评审）
+
+> PRD 见 `docs/prd/v0.2.4/prd.md`。评审①挂起——**下次开发会话启动时，先让使用人逐条确认 PRD 文末「待确认事项」表（Q1–Q11），全部拍板后才能继续生成 design.md、dev.md、database.md、sql/、plan.md、test.md、ops.md**。
+
+三个需求：**免费试用额度**（登录用户 5 次免费生成，按账号计数、失败返还，用完引导配置自己的百炼 Key，BYOK 调用不消耗额度）、**邮箱验证注册**（注册后点击验证邮件才能登录，GitHub OAuth 不受影响）、**平台 Key 托管**（免费试用由服务端代理调用百炼，Key 只存服务端环境变量，绝不进入浏览器请求）。
+
+**评审①挂起**：11 条待确认的业务假设已集中在 PRD 文末「待确认事项」表（Q1–Q11），以 PRD 为单一事实源。
+
+**技术风险（实现前需实测）**：
+- Vercel Function 时长上限 vs 视频拆解长任务——SSE 流式代理能否撑住全链路耗时，需实测后决定 maxDuration 配置或备选方案
+- SSE buffer 机制在代理透传中必须保留（见「已知限制」）
 
 ## v0.2.3 存储方案重构
 
